@@ -1,15 +1,18 @@
 # Threading Model de ztunnel con Tokio
 
 ---
+
 **Módulo**: 4 - Arquitectura de ztunnel
 **Tema**: Threading y Async Runtime
 **Tiempo estimado**: 3 horas
 **Prerrequisitos**: [01_ambient_mode_context.md](01_ambient_mode_context.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás el modelo de threading de ztunnel
 - Comprenderás cómo funciona Tokio async runtime
 - Conocerás la separación admin/data plane
@@ -61,11 +64,11 @@ De `ARCHITECTURE.md`:
 
 ### 1.2 Por qué Dos Runtimes
 
-| Motivo | Explicación |
-|--------|-------------|
-| **Aislamiento** | Stats queries pueden ser costosos |
-| **Latencia predecible** | Admin no bloquea data plane |
-| **Debugging** | Admin accesible aunque data plane esté ocupado |
+| Motivo                  | Explicación                                    |
+| ----------------------- | ---------------------------------------------- |
+| **Aislamiento**         | Stats queries pueden ser costosos              |
+| **Latencia predecible** | Admin no bloquea data plane                    |
+| **Debugging**           | Admin accesible aunque data plane esté ocupado |
 
 ---
 
@@ -158,12 +161,12 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
 
 ### 3.1 Modelo de Threading
 
-| Aspecto | Envoy | ztunnel |
-|---------|-------|---------|
-| **Runtime** | libevent (callbacks) | Tokio (async/await) |
-| **Modelo** | 1 thread = 1 event loop | N threads, work-stealing |
+| Aspecto      | Envoy                   | ztunnel                    |
+| ------------ | ----------------------- | -------------------------- |
+| **Runtime**  | libevent (callbacks)    | Tokio (async/await)        |
+| **Modelo**   | 1 thread = 1 event loop | N threads, work-stealing   |
 | **Conexión** | Siempre en mismo thread | Puede migrar entre threads |
-| **Async** | Callbacks explícitos | async/await nativo |
+| **Async**    | Callbacks explícitos    | async/await nativo         |
 
 ### 3.2 Visualización
 
@@ -361,12 +364,12 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
 
 ### 6.3 Ventajas de Async/Await
 
-| Ventaja | Descripción |
-|---------|-------------|
-| **Legibilidad** | Código parece secuencial |
+| Ventaja            | Descripción                        |
+| ------------------ | ---------------------------------- |
+| **Legibilidad**    | Código parece secuencial           |
 | **Error handling** | `?` operator funciona naturalmente |
-| **Composición** | Fácil combinar operaciones async |
-| **Debugging** | Stack traces más claros |
+| **Composición**    | Fácil combinar operaciones async   |
+| **Debugging**      | Stack traces más claros            |
 
 ---
 

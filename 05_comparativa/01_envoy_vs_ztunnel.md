@@ -1,15 +1,18 @@
 # Envoy vs ztunnel: Comparativa Detallada
 
 ---
+
 **Módulo**: 5 - Comparativa
 **Tema**: Comparación arquitectónica y funcional
 **Tiempo estimado**: 2 horas
 **Prerrequisitos**: Módulos 3 y 4 completos
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás las diferencias fundamentales entre Envoy y ztunnel
 - Conocerás los trade-offs de cada aproximación
 - Sabrás cuándo usar cada uno
@@ -47,13 +50,13 @@ Al completar este documento:
 
 ### 1.2 Filosofía de Diseño
 
-| Aspecto | Envoy | ztunnel |
-|---------|-------|---------|
-| **Alcance** | General purpose | Purpose-built |
+| Aspecto            | Envoy                       | ztunnel            |
+| ------------------ | --------------------------- | ------------------ |
+| **Alcance**        | General purpose             | Purpose-built      |
 | **Extensibilidad** | Alta (WASM, Lua, ext_authz) | Mínima (by design) |
-| **Complejidad** | Alta | Baja |
-| **Features** | Muchas | Pocas (esenciales) |
-| **Configuración** | Flexible, compleja | Simple, limitada |
+| **Complejidad**    | Alta                        | Baja               |
+| **Features**       | Muchas                      | Pocas (esenciales) |
+| **Configuración**  | Flexible, compleja          | Simple, limitada   |
 
 ---
 
@@ -122,27 +125,27 @@ Al completar este documento:
 
 ### 2.3 Features Detalladas
 
-| Feature | Envoy | ztunnel |
-|---------|-------|---------|
-| **HTTP Routing** | ✓ Path, headers, methods | ✗ |
-| **HTTP Transforms** | ✓ Add/remove headers | ✗ |
-| **Rate Limiting** | ✓ L7 rate limiting | ✗ |
-| **JWT Validation** | ✓ | ✗ |
-| **Circuit Breaking** | ✓ L7 circuit breaker | ✗ |
-| **Retries** | ✓ L7 retries | ✗ |
-| **Load Balancing** | ✓ RR, LC, Ring Hash, etc. | Básico (via xDS) |
-| **Health Checking** | ✓ HTTP, TCP, gRPC | ✗ |
-| **mTLS** | ✓ | ✓ |
-| **SPIFFE Identity** | ✓ | ✓ |
-| **L4 Authorization** | ✓ | ✓ |
-| **L7 Authorization** | ✓ | ✗ |
-| **Access Logging** | ✓ Rich L7 logs | ✓ L4 logs |
-| **Tracing** | ✓ Jaeger, Zipkin, etc. | Limited |
-| **Metrics** | ✓ Prometheus, StatsD | ✓ Prometheus |
-| **WASM Extensions** | ✓ | ✗ |
-| **Lua Scripting** | ✓ | ✗ |
-| **External AuthZ** | ✓ | ✗ |
-| **HBONE Protocol** | ✓ (nuevo) | ✓ |
+| Feature              | Envoy                     | ztunnel          |
+| -------------------- | ------------------------- | ---------------- |
+| **HTTP Routing**     | ✓ Path, headers, methods  | ✗                |
+| **HTTP Transforms**  | ✓ Add/remove headers      | ✗                |
+| **Rate Limiting**    | ✓ L7 rate limiting        | ✗                |
+| **JWT Validation**   | ✓                         | ✗                |
+| **Circuit Breaking** | ✓ L7 circuit breaker      | ✗                |
+| **Retries**          | ✓ L7 retries              | ✗                |
+| **Load Balancing**   | ✓ RR, LC, Ring Hash, etc. | Básico (via xDS) |
+| **Health Checking**  | ✓ HTTP, TCP, gRPC         | ✗                |
+| **mTLS**             | ✓                         | ✓                |
+| **SPIFFE Identity**  | ✓                         | ✓                |
+| **L4 Authorization** | ✓                         | ✓                |
+| **L7 Authorization** | ✓                         | ✗                |
+| **Access Logging**   | ✓ Rich L7 logs            | ✓ L4 logs        |
+| **Tracing**          | ✓ Jaeger, Zipkin, etc.    | Limited          |
+| **Metrics**          | ✓ Prometheus, StatsD      | ✓ Prometheus     |
+| **WASM Extensions**  | ✓                         | ✗                |
+| **Lua Scripting**    | ✓                         | ✗                |
+| **External AuthZ**   | ✓                         | ✗                |
+| **HBONE Protocol**   | ✓ (nuevo)                 | ✓                |
 
 ---
 
@@ -236,46 +239,46 @@ async fn handle_connection(
 # Envoy config - muchas opciones
 static_resources:
   listeners:
-  - name: listener_0
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: 8080
-    filter_chains:
-    - filters:
-      - name: envoy.filters.network.http_connection_manager
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-          stat_prefix: ingress_http
-          codec_type: AUTO
-          route_config:
-            name: local_route
-            virtual_hosts:
-            - name: backend
-              domains: ["*"]
-              routes:
-              - match:
-                  prefix: "/"
-                route:
-                  cluster: backend_cluster
-          http_filters:
-          - name: envoy.filters.http.router
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+    - name: listener_0
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 8080
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                codec_type: AUTO
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: backend
+                      domains: ["*"]
+                      routes:
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: backend_cluster
+                http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
-  - name: backend_cluster
-    type: STRICT_DNS
-    lb_policy: ROUND_ROBIN
-    load_assignment:
-      cluster_name: backend_cluster
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              socket_address:
-                address: backend
-                port_value: 8080
+    - name: backend_cluster
+      type: STRICT_DNS
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: backend_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: backend
+                      port_value: 8080
 ```
 
 **ztunnel (xDS principalmente):**
@@ -334,14 +337,14 @@ static_resources:
 
 ### 4.2 Throughput
 
-| Escenario | Envoy | ztunnel |
-|-----------|-------|---------|
-| **TCP passthrough** | ~1M req/s | ~1.2M req/s |
-| **HTTP/1.1 proxy** | ~100K req/s | N/A |
-| **HTTP/2 proxy** | ~150K req/s | N/A |
-| **mTLS overhead** | ~5-10% | ~5-10% |
+| Escenario           | Envoy       | ztunnel     |
+| ------------------- | ----------- | ----------- |
+| **TCP passthrough** | ~1M req/s   | ~1.2M req/s |
+| **HTTP/1.1 proxy**  | ~100K req/s | N/A         |
+| **HTTP/2 proxy**    | ~150K req/s | N/A         |
+| **mTLS overhead**   | ~5-10%      | ~5-10%      |
 
-*Nota: Números ilustrativos, varían según hardware y configuración*
+_Nota: Números ilustrativos, varían según hardware y configuración_
 
 ---
 
@@ -501,25 +504,25 @@ static_resources:
 
 ### 7.1 Cuándo Usar Envoy
 
-| Caso de Uso | Por qué Envoy |
-|-------------|---------------|
-| **API Gateway** | Necesita routing L7, rate limiting, auth |
-| **Service Mesh (sidecar)** | Full L7 control per-service |
-| **Ingress Controller** | HTTP routing, TLS termination |
-| **L7 Load Balancer** | Content-based routing |
-| **Protocol Translation** | HTTP/1 ↔ HTTP/2 ↔ gRPC |
-| **Observability** | Rich L7 metrics y tracing |
-| **Security Policies** | JWT, RBAC on paths/methods |
+| Caso de Uso                | Por qué Envoy                            |
+| -------------------------- | ---------------------------------------- |
+| **API Gateway**            | Necesita routing L7, rate limiting, auth |
+| **Service Mesh (sidecar)** | Full L7 control per-service              |
+| **Ingress Controller**     | HTTP routing, TLS termination            |
+| **L7 Load Balancer**       | Content-based routing                    |
+| **Protocol Translation**   | HTTP/1 ↔ HTTP/2 ↔ gRPC                 |
+| **Observability**          | Rich L7 metrics y tracing                |
+| **Security Policies**      | JWT, RBAC on paths/methods               |
 
 ### 7.2 Cuándo Usar ztunnel
 
-| Caso de Uso | Por qué ztunnel |
-|-------------|-----------------|
-| **Ambient Mesh** | Node-level mTLS para todos los pods |
-| **L4 Only** | No necesitas features L7 |
-| **Resource Efficiency** | Muchos pods, recursos limitados |
-| **Simple mTLS** | Solo quieres cifrado y identidad |
-| **High Throughput** | L4 proxy con mínimo overhead |
+| Caso de Uso             | Por qué ztunnel                     |
+| ----------------------- | ----------------------------------- |
+| **Ambient Mesh**        | Node-level mTLS para todos los pods |
+| **L4 Only**             | No necesitas features L7            |
+| **Resource Efficiency** | Muchos pods, recursos limitados     |
+| **Simple mTLS**         | Solo quieres cifrado y identidad    |
+| **High Throughput**     | L4 proxy con mínimo overhead        |
 
 ### 7.3 Cuándo Usar Ambos (Ambient Mode)
 
@@ -562,18 +565,18 @@ static_resources:
 
 ## 8. Tabla Resumen
 
-| Aspecto | Envoy | ztunnel | Ganador |
-|---------|-------|---------|---------|
-| **Lenguaje** | C++20 | Rust | Empate (trade-offs) |
-| **Código** | ~500K LOC | ~30K LOC | ztunnel (simplicidad) |
-| **Memoria** | 50-100MB | 20-50MB | ztunnel |
-| **Latencia** | +1-5ms | +0.1-0.5ms | ztunnel |
-| **L7 Features** | Completo | Ninguno | Envoy |
-| **Extensibilidad** | Alta | Ninguna | Envoy |
-| **Configuración** | Compleja | Simple | ztunnel |
-| **Debugging** | Rich tools | Básico | Envoy |
-| **Casos de uso** | Muchos | Uno | Envoy |
-| **Madurez** | 8+ años | 2+ años | Envoy |
+| Aspecto            | Envoy      | ztunnel    | Ganador               |
+| ------------------ | ---------- | ---------- | --------------------- |
+| **Lenguaje**       | C++20      | Rust       | Empate (trade-offs)   |
+| **Código**         | ~500K LOC  | ~30K LOC   | ztunnel (simplicidad) |
+| **Memoria**        | 50-100MB   | 20-50MB    | ztunnel               |
+| **Latencia**       | +1-5ms     | +0.1-0.5ms | ztunnel               |
+| **L7 Features**    | Completo   | Ninguno    | Envoy                 |
+| **Extensibilidad** | Alta       | Ninguna    | Envoy                 |
+| **Configuración**  | Compleja   | Simple     | ztunnel               |
+| **Debugging**      | Rich tools | Básico     | Envoy                 |
+| **Casos de uso**   | Muchos     | Uno        | Envoy                 |
+| **Madurez**        | 8+ años    | 2+ años    | Envoy                 |
 
 ---
 
@@ -589,14 +592,13 @@ static_resources:
 
 ## 10. Referencias
 
-| Recurso | URL |
-|---------|-----|
-| Envoy Architecture | https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/ |
-| ztunnel Architecture | ARCHITECTURE.md en repositorio |
-| Istio Ambient | https://istio.io/latest/docs/ambient/ |
-| Rust vs C++ in Systems | Múltiples blogs técnicos |
+| Recurso                | URL                                                              |
+| ---------------------- | ---------------------------------------------------------------- |
+| Envoy Architecture     | https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/ |
+| ztunnel Architecture   | ARCHITECTURE.md en repositorio                                   |
+| Istio Ambient          | https://istio.io/latest/docs/ambient/                            |
+| Rust vs C++ in Systems | Múltiples blogs técnicos                                         |
 
 ---
 
 **Siguiente**: [02_ambient_mode_completo.md](02_ambient_mode_completo.md) - Arquitectura Ambient Mode Completa
-

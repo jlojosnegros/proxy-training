@@ -1,9 +1,11 @@
 # Ejercicio: Trazar un Request en Envoy
 
 ---
+
 **Tipo**: Ejercicio práctico
 **Tiempo estimado**: 1-2 horas
 **Prerrequisitos**: Ejercicio 01 completado
+
 ---
 
 ## Objetivo
@@ -27,80 +29,80 @@ admin:
 
 static_resources:
   listeners:
-  - name: listener_0
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: 8080
-    filter_chains:
-    - filters:
-      - name: envoy.filters.network.http_connection_manager
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-          stat_prefix: ingress_http
-          codec_type: AUTO
+    - name: listener_0
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 8080
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                codec_type: AUTO
 
-          # Access logging
-          access_log:
-          - name: envoy.access_loggers.stdout
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
-              log_format:
-                text_format: |
-                  [%START_TIME%] "%REQ(:METHOD)% %REQ(:PATH)% %PROTOCOL%"
-                  Response: %RESPONSE_CODE% %RESPONSE_FLAGS%
-                  Duration: %DURATION%ms
-                  Upstream: %UPSTREAM_HOST%
-                  Request ID: %REQ(X-REQUEST-ID)%
-                  ---
+                # Access logging
+                access_log:
+                  - name: envoy.access_loggers.stdout
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                      log_format:
+                        text_format: |
+                          [%START_TIME%] "%REQ(:METHOD)% %REQ(:PATH)% %PROTOCOL%"
+                          Response: %RESPONSE_CODE% %RESPONSE_FLAGS%
+                          Duration: %DURATION%ms
+                          Upstream: %UPSTREAM_HOST%
+                          Request ID: %REQ(X-REQUEST-ID)%
+                          ---
 
-          route_config:
-            name: local_route
-            virtual_hosts:
-            - name: backend
-              domains:
-              - "*"
-              routes:
-              - match:
-                  prefix: "/api"
-                route:
-                  cluster: api_cluster
-              - match:
-                  prefix: "/"
-                route:
-                  cluster: default_cluster
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: backend
+                      domains:
+                        - "*"
+                      routes:
+                        - match:
+                            prefix: "/api"
+                          route:
+                            cluster: api_cluster
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: default_cluster
 
-          http_filters:
-          - name: envoy.filters.http.router
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+                http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
-  - name: api_cluster
-    type: STRICT_DNS
-    lb_policy: ROUND_ROBIN
-    load_assignment:
-      cluster_name: api_cluster
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              socket_address:
-                address: httpbin.org
-                port_value: 80
+    - name: api_cluster
+      type: STRICT_DNS
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: api_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: httpbin.org
+                      port_value: 80
 
-  - name: default_cluster
-    type: STRICT_DNS
-    lb_policy: ROUND_ROBIN
-    load_assignment:
-      cluster_name: default_cluster
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              socket_address:
-                address: httpbin.org
-                port_value: 80
+    - name: default_cluster
+      type: STRICT_DNS
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: default_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: httpbin.org
+                      port_value: 80
 ```
 
 ### 1.2 Iniciar Envoy
@@ -121,6 +123,7 @@ curl http://localhost:8080/get
 ```
 
 **Observar en logs de Envoy:**
+
 ```
 [2025-12-04T10:30:00.000Z] "GET /get HTTP/1.1"
 Response: 200 -
@@ -159,6 +162,7 @@ curl http://localhost:8080/get
 ```
 
 **Observar logs detallados:**
+
 - Parsing de headers
 - Routing decision
 - Upstream selection
@@ -262,30 +266,30 @@ Añadir a la configuración:
 
 ```yaml
 clusters:
-# ... clusters anteriores ...
-- name: failing_cluster
-  type: STRICT_DNS
-  lb_policy: ROUND_ROBIN
-  connect_timeout: 1s
-  load_assignment:
-    cluster_name: failing_cluster
-    endpoints:
-    - lb_endpoints:
-      - endpoint:
-          address:
-            socket_address:
-              address: nonexistent.invalid
-              port_value: 80
+  # ... clusters anteriores ...
+  - name: failing_cluster
+    type: STRICT_DNS
+    lb_policy: ROUND_ROBIN
+    connect_timeout: 1s
+    load_assignment:
+      cluster_name: failing_cluster
+      endpoints:
+        - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: nonexistent.invalid
+                    port_value: 80
 ```
 
 Y una ruta:
 
 ```yaml
 routes:
-- match:
-    prefix: "/fail"
-  route:
-    cluster: failing_cluster
+  - match:
+      prefix: "/fail"
+    route:
+      cluster: failing_cluster
 ```
 
 ### 7.2 Observar Fallo
@@ -295,6 +299,7 @@ curl http://localhost:8080/fail
 ```
 
 **Observar:**
+
 - Response code: 503
 - Response flags en access log
 - Stats de error
@@ -320,32 +325,31 @@ curl http://localhost:15000/stats | grep -E "upstream_rq_5xx|upstream_cx_connect
 
 ## 9. Variables de Access Log Útiles
 
-| Variable | Descripción |
-|----------|-------------|
-| `%START_TIME%` | Timestamp del request |
-| `%REQ(:METHOD)%` | HTTP method |
-| `%REQ(:PATH)%` | Request path |
-| `%PROTOCOL%` | HTTP/1.1 o HTTP/2 |
-| `%RESPONSE_CODE%` | HTTP response code |
-| `%RESPONSE_FLAGS%` | Flags de Envoy (UF, NR, etc.) |
-| `%DURATION%` | Duración total en ms |
-| `%UPSTREAM_HOST%` | IP:port del upstream |
-| `%UPSTREAM_CLUSTER%` | Nombre del cluster |
+| Variable             | Descripción                   |
+| -------------------- | ----------------------------- |
+| `%START_TIME%`       | Timestamp del request         |
+| `%REQ(:METHOD)%`     | HTTP method                   |
+| `%REQ(:PATH)%`       | Request path                  |
+| `%PROTOCOL%`         | HTTP/1.1 o HTTP/2             |
+| `%RESPONSE_CODE%`    | HTTP response code            |
+| `%RESPONSE_FLAGS%`   | Flags de Envoy (UF, NR, etc.) |
+| `%DURATION%`         | Duración total en ms          |
+| `%UPSTREAM_HOST%`    | IP:port del upstream          |
+| `%UPSTREAM_CLUSTER%` | Nombre del cluster            |
 
 ---
 
 ## 10. Response Flags Comunes
 
-| Flag | Significado |
-|------|-------------|
-| `UF` | Upstream connection failure |
-| `NR` | No route configured |
-| `UC` | Upstream connection termination |
-| `UT` | Upstream request timeout |
+| Flag | Significado                       |
+| ---- | --------------------------------- |
+| `UF` | Upstream connection failure       |
+| `NR` | No route configured               |
+| `UC` | Upstream connection termination   |
+| `UT` | Upstream request timeout          |
 | `LH` | Local service failed health check |
 | `DC` | Downstream connection termination |
 
 ---
 
 **Siguiente ejercicio**: [03_modificar_filtro.md](03_modificar_filtro.md) - Modificar un Filtro
-

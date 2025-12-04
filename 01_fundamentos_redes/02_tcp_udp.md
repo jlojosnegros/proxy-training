@@ -1,15 +1,18 @@
 # Protocolos de Transporte: TCP y UDP
 
 ---
+
 **Módulo**: 1 - Fundamentos de Redes
 **Tema**: TCP y UDP
 **Tiempo estimado**: 2 horas
 **Prerrequisitos**: [01_modelo_osi.md](01_modelo_osi.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás las diferencias fundamentales entre TCP y UDP
 - Comprenderás el ciclo de vida de una conexión TCP
 - Sabrás cómo los proxies manejan conexiones TCP
@@ -23,13 +26,13 @@ Al completar este documento:
 
 TCP es un protocolo **connection-oriented** y **reliable**:
 
-| Característica | Descripción |
-|----------------|-------------|
+| Característica          | Descripción                                            |
+| ----------------------- | ------------------------------------------------------ |
 | **Connection-oriented** | Requiere establecer conexión antes de transmitir datos |
-| **Reliable** | Garantiza entrega de todos los bytes en orden |
-| **Stream-based** | Trata los datos como flujo continuo de bytes |
-| **Flow control** | Evita saturar al receptor |
-| **Congestion control** | Adapta velocidad según condiciones de red |
+| **Reliable**            | Garantiza entrega de todos los bytes en orden          |
+| **Stream-based**        | Trata los datos como flujo continuo de bytes           |
+| **Flow control**        | Evita saturar al receptor                              |
+| **Congestion control**  | Adapta velocidad según condiciones de red              |
 
 ### 1.2 El Three-Way Handshake
 
@@ -56,6 +59,7 @@ Antes de cualquier transmisión de datos, TCP establece una conexión:
 ```
 
 **Detalles importantes**:
+
 - `seq` (sequence number): Número de secuencia inicial (ISN - Initial Sequence Number)
 - `ack` (acknowledgment): Confirma recepción hasta ese byte
 - Cada lado tiene su propio número de secuencia
@@ -79,6 +83,7 @@ Una vez establecida la conexión:
 ```
 
 **Conceptos clave**:
+
 - **Sequence number**: Identifica cada byte en el stream
 - **Acknowledgment**: Confirma bytes recibidos
 - **Window size**: Cuántos bytes puede recibir sin confirmar
@@ -107,11 +112,13 @@ Una vez establecida la conexión:
 ```
 
 **El estado TIME_WAIT**:
+
 - Dura 2 × MSL (Maximum Segment Lifetime, típicamente 60 segundos)
 - Permite que lleguen segmentos retrasados
 - Evita que nueva conexión con mismos puertos reciba datos viejos
 
 **Implicación para proxies**:
+
 - Muchas conexiones en TIME_WAIT pueden agotar puertos
 - Connection pooling en Envoy reutiliza conexiones para evitar esto
 
@@ -137,14 +144,17 @@ close(client_fd);
 ```
 
 **Conceptos clave**:
+
 - Cada conexión TCP = un file descriptor
 - `accept()` crea un nuevo fd para cada cliente
 - El proxy tiene fds para downstream y upstream
 
 **En Envoy**:
+
 ```
 source/common/network/connection_impl.h:50-150
 ```
+
 La clase `ConnectionImpl` encapsula el socket fd y maneja eventos de I/O.
 
 ---
@@ -155,14 +165,14 @@ La clase `ConnectionImpl` encapsula el socket fd y maneja eventos de I/O.
 
 UDP es **connectionless** y **unreliable** (en el sentido de que no garantiza entrega):
 
-| Característica | TCP | UDP |
-|----------------|-----|-----|
-| Connection | Sí (handshake) | No |
-| Reliability | Garantizada | No garantizada |
-| Ordering | En orden | Sin garantía |
-| Overhead | Mayor (headers, ACKs) | Menor |
-| Latency | Mayor (handshake, retransmisiones) | Menor |
-| Use case | HTTP, gRPC | DNS, video streaming, QUIC |
+| Característica | TCP                                | UDP                        |
+| -------------- | ---------------------------------- | -------------------------- |
+| Connection     | Sí (handshake)                     | No                         |
+| Reliability    | Garantizada                        | No garantizada             |
+| Ordering       | En orden                           | Sin garantía               |
+| Overhead       | Mayor (headers, ACKs)              | Menor                      |
+| Latency        | Mayor (handshake, retransmisiones) | Menor                      |
+| Use case       | HTTP, gRPC                         | DNS, video streaming, QUIC |
 
 ### 2.2 Estructura de un Datagrama UDP
 
@@ -183,20 +193,22 @@ UDP es **connectionless** y **unreliable** (en el sentido de que no garantiza en
 ```
 
 **Comparado con TCP**:
+
 - Header de 8 bytes vs 20+ bytes de TCP
 - Sin sequence numbers, ACKs, flags
 - Más simple pero sin garantías
 
 ### 2.3 Cuándo Usar UDP
 
-| Caso de Uso | Por qué UDP |
-|-------------|-------------|
-| **DNS** | Queries pequeñas, baja latencia crítica |
-| **Video streaming** | Pérdida de frame < retransmisión |
-| **Gaming** | Latencia mínima, estado más reciente importa |
-| **QUIC/HTTP/3** | UDP como base, reliability en app layer |
+| Caso de Uso         | Por qué UDP                                  |
+| ------------------- | -------------------------------------------- |
+| **DNS**             | Queries pequeñas, baja latencia crítica      |
+| **Video streaming** | Pérdida de frame < retransmisión             |
+| **Gaming**          | Latencia mínima, estado más reciente importa |
+| **QUIC/HTTP/3**     | UDP como base, reliability en app layer      |
 
 **QUIC** (usado en HTTP/3):
+
 - Construido sobre UDP
 - Implementa reliability y ordering en espacio de usuario
 - Evita head-of-line blocking de TCP
@@ -221,6 +233,7 @@ Cliente                    Proxy                    Servidor
 ```
 
 **El proxy mantiene**:
+
 - Un fd para la conexión downstream (cliente)
 - Un fd para la conexión upstream (servidor)
 - Copia datos entre ambos
@@ -248,6 +261,7 @@ Request 3:             Data  (reutiliza conexión)
 ```
 
 **En Envoy**:
+
 ```
 source/common/http/conn_pool_base.h
 ```
@@ -259,19 +273,21 @@ El filtro `tcp_proxy` es un proxy L4 puro:
 ```yaml
 # Configuración de tcp_proxy
 filters:
-- name: envoy.filters.network.tcp_proxy
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
-    stat_prefix: tcp
-    cluster: backend_cluster
+  - name: envoy.filters.network.tcp_proxy
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+      stat_prefix: tcp
+      cluster: backend_cluster
 ```
 
 **Código**:
+
 ```
 source/extensions/filters/network/tcp_proxy/tcp_proxy.cc
 ```
 
 Este filtro:
+
 1. Acepta conexión TCP downstream
 2. Establece conexión TCP a upstream cluster
 3. Copia bytes bidireccionalmente
@@ -299,6 +315,7 @@ async fn proxy_connection(downstream: TcpStream, upstream_addr: SocketAddr) {
 ```
 
 **Código real**:
+
 ```
 ztunnel/src/proxy/
 ```
@@ -310,15 +327,18 @@ ztunnel/src/proxy/
 ### 4.1 SO_REUSEPORT y SO_REUSEADDR
 
 **SO_REUSEADDR**:
+
 - Permite reutilizar un puerto en TIME_WAIT
 - Útil para restart rápido de servidores
 
 **SO_REUSEPORT**:
+
 - Permite que múltiples sockets escuchen en el mismo puerto
 - El kernel distribuye conexiones entre ellos
 - Envoy lo usa para distribuir entre worker threads
 
 **En Envoy**:
+
 ```cpp
 // source/common/network/socket_option_impl.cc
 setSocketOption(SO_REUSEPORT, 1);
@@ -340,6 +360,7 @@ Tiempo   0     30s    60s    90s
 ```
 
 **Configuración en Envoy** (cluster config):
+
 ```yaml
 upstream_connection_options:
   tcp_keepalive:
@@ -376,6 +397,7 @@ curl http://localhost:8080/
 ```
 
 Identifica:
+
 - Los 3 paquetes del handshake (SYN, SYN-ACK, ACK)
 - Los números de secuencia
 - El cierre de conexión
@@ -395,6 +417,7 @@ curl localhost:9901/stats | grep upstream_cx
 ```
 
 Observa:
+
 - `upstream_cx_total`: Total de conexiones creadas
 - `upstream_cx_active`: Conexiones actualmente activas
 - `upstream_cx_destroy`: Conexiones cerradas
@@ -415,17 +438,17 @@ Observa:
 
 ### Envoy
 
-| Archivo | Descripción |
-|---------|-------------|
-| `source/common/network/connection_impl.h` | Abstracción de conexión TCP |
-| `source/common/network/socket_impl.cc` | Opciones de socket |
-| `source/extensions/filters/network/tcp_proxy/tcp_proxy.cc` | TCP proxy filter |
-| `source/common/http/conn_pool_base.h` | Connection pooling |
+| Archivo                                                    | Descripción                 |
+| ---------------------------------------------------------- | --------------------------- |
+| `source/common/network/connection_impl.h`                  | Abstracción de conexión TCP |
+| `source/common/network/socket_impl.cc`                     | Opciones de socket          |
+| `source/extensions/filters/network/tcp_proxy/tcp_proxy.cc` | TCP proxy filter            |
+| `source/common/http/conn_pool_base.h`                      | Connection pooling          |
 
 ### ztunnel
 
-| Archivo | Descripción |
-|---------|-------------|
+| Archivo      | Descripción       |
+| ------------ | ----------------- |
 | `src/proxy/` | Core TCP proxying |
 
 ---

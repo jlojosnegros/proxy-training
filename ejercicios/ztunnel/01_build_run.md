@@ -1,9 +1,11 @@
 # Ejercicio: Compilar y Ejecutar ztunnel
 
 ---
+
 **Tipo**: Ejercicio práctico
 **Tiempo estimado**: 1-2 horas
 **Prerrequisitos**: Módulo 4 completo, Rust instalado
+
 ---
 
 ## Objetivo
@@ -246,6 +248,7 @@ cargo doc --no-deps --open
 ### 8.2 Ver Documentación de Módulos
 
 La documentación generada mostrará:
+
 - Estructuras públicas
 - Funciones y sus signatures
 - Traits implementados
@@ -322,9 +325,9 @@ cat src/xds/mod.rs | head -100
 ## 12. Siguiente Paso
 
 Una vez completado, continúa con:
+
 - [02_analizar_conexion.md](02_analizar_conexion.md) - Analizar Flujo de Conexión
 
 ---
 
 **Tiempo total estimado**: 1-2 horas
-

@@ -1,15 +1,18 @@
 # Vida de un Request en Envoy
 
 ---
+
 **Módulo**: 3 - Arquitectura de Envoy
 **Tema**: Life of a Request
 **Tiempo estimado**: 4 horas
 **Prerrequisitos**: [02_threading_model.md](02_threading_model.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Podrás trazar el camino completo de un request
 - Identificarás cada componente involucrado
 - Entenderás cómo fluyen los datos
@@ -393,25 +396,25 @@ RouteConstSharedPtr VirtualHostImpl::getRouteFromEntries(
 ```yaml
 route_config:
   virtual_hosts:
-  - name: api
-    domains: ["api.example.com"]
-    routes:
-    - match:
-        prefix: "/api/v1/"
-        headers:
-        - name: "x-api-version"
-          exact_match: "1"
-      route:
-        cluster: api-v1
-        timeout: 30s
-        retry_policy:
-          retry_on: "5xx"
-          num_retries: 3
+    - name: api
+      domains: ["api.example.com"]
+      routes:
+        - match:
+            prefix: "/api/v1/"
+            headers:
+              - name: "x-api-version"
+                exact_match: "1"
+          route:
+            cluster: api-v1
+            timeout: 30s
+            retry_policy:
+              retry_on: "5xx"
+              num_retries: 3
 
-    - match:
-        prefix: "/api/v2/"
-      route:
-        cluster: api-v2
+        - match:
+            prefix: "/api/v2/"
+          route:
+            cluster: api-v2
 ```
 
 ---
@@ -454,13 +457,13 @@ HostConstSharedPtr RoundRobinLoadBalancer::chooseHost(LoadBalancerContext*) {
 
 ### 7.3 Algoritmos de Load Balancing
 
-| Algoritmo | Descripción | Uso |
-|-----------|-------------|-----|
-| `ROUND_ROBIN` | Rotación circular | Default, distribución uniforme |
-| `LEAST_REQUEST` | Menos requests activos | Workloads variables |
-| `RANDOM` | Aleatorio | Simple, bajo overhead |
-| `RING_HASH` | Consistent hashing | Sticky sessions, caching |
-| `MAGLEV` | Google's Maglev | Mejor distribución que ring hash |
+| Algoritmo       | Descripción            | Uso                              |
+| --------------- | ---------------------- | -------------------------------- |
+| `ROUND_ROBIN`   | Rotación circular      | Default, distribución uniforme   |
+| `LEAST_REQUEST` | Menos requests activos | Workloads variables              |
+| `RANDOM`        | Aleatorio              | Simple, bajo overhead            |
+| `RING_HASH`     | Consistent hashing     | Sticky sessions, caching         |
+| `MAGLEV`        | Google's Maglev        | Mejor distribución que ring hash |
 
 ---
 

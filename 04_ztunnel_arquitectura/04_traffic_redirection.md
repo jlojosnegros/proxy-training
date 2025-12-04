@@ -1,15 +1,18 @@
 # Traffic Redirection en ztunnel
 
 ---
+
 **Módulo**: 4 - Arquitectura de ztunnel
 **Tema**: Redirección de Tráfico con iptables
 **Tiempo estimado**: 3 horas
 **Prerrequisitos**: [03_hbone_protocol.md](03_hbone_protocol.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás cómo ztunnel intercepta tráfico transparentemente
 - Conocerás el rol de iptables/netfilter en la redirección
 - Comprenderás la diferencia entre in-pod y node-level redirection
@@ -97,12 +100,12 @@ Netfilter es el framework de filtrado de paquetes del kernel Linux:
 
 ### 2.2 Tablas de iptables
 
-| Tabla | Propósito |
-|-------|-----------|
+| Tabla      | Propósito                          |
+| ---------- | ---------------------------------- |
 | **filter** | Filtrado de paquetes (ACCEPT/DROP) |
-| **nat** | Network Address Translation |
-| **mangle** | Modificación de paquetes |
-| **raw** | Excepciones al connection tracking |
+| **nat**    | Network Address Translation        |
+| **mangle** | Modificación de paquetes           |
+| **raw**    | Excepciones al connection tracking |
 
 ### 2.3 Chains Relevantes para Redirección
 
@@ -171,12 +174,12 @@ Netfilter es el framework de filtrado de paquetes del kernel Linux:
 
 ### 3.2 Comparación
 
-| Aspecto | Node-Level | In-Pod |
-|---------|-----------|--------|
-| **Complejidad** | Mayor (manejo de múltiples ns) | Menor |
-| **Aislamiento** | Menor | Mayor (por pod) |
-| **Performance** | Mejor (menos context switches) | Overhead de ns |
-| **Usado en** | Algunas configuraciones | Istio CNI default |
+| Aspecto         | Node-Level                     | In-Pod            |
+| --------------- | ------------------------------ | ----------------- |
+| **Complejidad** | Mayor (manejo de múltiples ns) | Menor             |
+| **Aislamiento** | Menor                          | Mayor (por pod)   |
+| **Performance** | Mejor (menos context switches) | Overhead de ns    |
+| **Usado en**    | Algunas configuraciones        | Istio CNI default |
 
 ---
 
@@ -349,16 +352,16 @@ spec:
   template:
     spec:
       containers:
-      - name: install-cni
-        # Instala el plugin CNI en /opt/cni/bin
-        # Configura /etc/cni/net.d
-      - name: istio-cni
-        # Agente que observa pods y configura redirección
-        securityContext:
-          capabilities:
-            add:
-            - NET_ADMIN  # Para iptables
-            - SYS_ADMIN  # Para network namespaces
+        - name: install-cni
+          # Instala el plugin CNI en /opt/cni/bin
+          # Configura /etc/cni/net.d
+        - name: istio-cni
+          # Agente que observa pods y configura redirección
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN # Para iptables
+                - SYS_ADMIN # Para network namespaces
 ```
 
 ### 6.3 Flujo de Configuración
@@ -522,12 +525,12 @@ RUST_LOG=debug kubectl logs -n istio-system -l app=ztunnel
 
 ### 8.4 Troubleshooting Común
 
-| Problema | Causa Posible | Solución |
-|----------|---------------|----------|
+| Problema                    | Causa Posible                | Solución                             |
+| --------------------------- | ---------------------------- | ------------------------------------ |
 | Conexión directa (no proxy) | Reglas iptables no aplicadas | Verificar istio-cni, label namespace |
-| Timeout en conexión | ztunnel no escuchando | Verificar ztunnel pods running |
-| Loop infinito | Reglas no excluyen ztunnel | Verificar `--uid-owner 1337` rule |
-| SO_ORIGINAL_DST falla | Kernel no soporta | Verificar versión kernel, conntrack |
+| Timeout en conexión         | ztunnel no escuchando        | Verificar ztunnel pods running       |
+| Loop infinito               | Reglas no excluyen ztunnel   | Verificar `--uid-owner 1337` rule    |
+| SO_ORIGINAL_DST falla       | Kernel no soporta            | Verificar versión kernel, conntrack  |
 
 ---
 
@@ -594,14 +597,13 @@ RUST_LOG=debug kubectl logs -n istio-system -l app=ztunnel
 
 ## 11. Referencias en el Código
 
-| Archivo/Recurso | Descripción |
-|-----------------|-------------|
-| ztunnel `ARCHITECTURE.md` | Puertos y flujo de tráfico |
-| istio/cni | Plugin CNI para reglas iptables |
-| iptables man page | Referencia de netfilter |
-| `SO_ORIGINAL_DST` | Opción de socket para destino original |
+| Archivo/Recurso           | Descripción                            |
+| ------------------------- | -------------------------------------- |
+| ztunnel `ARCHITECTURE.md` | Puertos y flujo de tráfico             |
+| istio/cni                 | Plugin CNI para reglas iptables        |
+| iptables man page         | Referencia de netfilter                |
+| `SO_ORIGINAL_DST`         | Opción de socket para destino original |
 
 ---
 
 **Siguiente Módulo**: [../05_comparativa/01_envoy_vs_ztunnel.md](../05_comparativa/01_envoy_vs_ztunnel.md) - Comparación Envoy vs ztunnel
-

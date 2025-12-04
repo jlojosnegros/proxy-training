@@ -1,15 +1,18 @@
 # Framework de Decisión: Eligiendo el Proxy Correcto
 
 ---
+
 **Módulo**: 5 - Comparativa
 **Tema**: Guía de decisión para arquitecturas de proxy
 **Tiempo estimado**: 1.5 horas
 **Prerrequisitos**: [02_ambient_mode_completo.md](02_ambient_mode_completo.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Tendrás un framework claro para elegir tecnologías
 - Conocerás los criterios de decisión clave
 - Podrás justificar decisiones arquitectónicas
@@ -139,31 +142,31 @@ Al completar este documento:
 
 #### Para L7 (¿Necesito Envoy/Waypoint?)
 
-| Feature | ¿La necesito? | Notas |
-|---------|---------------|-------|
-| HTTP routing por path | □ Sí □ No | Requiere L7 |
-| HTTP routing por headers | □ Sí □ No | Requiere L7 |
-| JWT validation | □ Sí □ No | Requiere L7 |
-| Rate limiting L7 | □ Sí □ No | Requiere L7 |
-| Request/Response transforms | □ Sí □ No | Requiere L7 |
-| gRPC transcoding | □ Sí □ No | Requiere L7 |
-| WASM extensions | □ Sí □ No | Solo Envoy |
-| Circuit breaking L7 | □ Sí □ No | Requiere L7 |
-| Retries inteligentes | □ Sí □ No | Requiere L7 |
-| Mirroring | □ Sí □ No | Requiere L7 |
+| Feature                     | ¿La necesito? | Notas       |
+| --------------------------- | ------------- | ----------- |
+| HTTP routing por path       | □ Sí □ No     | Requiere L7 |
+| HTTP routing por headers    | □ Sí □ No     | Requiere L7 |
+| JWT validation              | □ Sí □ No     | Requiere L7 |
+| Rate limiting L7            | □ Sí □ No     | Requiere L7 |
+| Request/Response transforms | □ Sí □ No     | Requiere L7 |
+| gRPC transcoding            | □ Sí □ No     | Requiere L7 |
+| WASM extensions             | □ Sí □ No     | Solo Envoy  |
+| Circuit breaking L7         | □ Sí □ No     | Requiere L7 |
+| Retries inteligentes        | □ Sí □ No     | Requiere L7 |
+| Mirroring                   | □ Sí □ No     | Requiere L7 |
 
 **Si >5 checks en Sí**: Necesitas L7 extensivo → Sidecar o Ambient+Waypoint
 
 #### Para L4 (¿ztunnel es suficiente?)
 
-| Feature | ¿La necesito? | ztunnel? |
-|---------|---------------|----------|
-| mTLS automático | □ Sí □ No | ✓ Sí |
-| Identidad SPIFFE | □ Sí □ No | ✓ Sí |
-| Authorization L4 | □ Sí □ No | ✓ Sí |
-| Métricas TCP | □ Sí □ No | ✓ Sí |
-| Cifrado en tránsito | □ Sí □ No | ✓ Sí |
-| Zero trust networking | □ Sí □ No | ✓ Sí |
+| Feature               | ¿La necesito? | ztunnel? |
+| --------------------- | ------------- | -------- |
+| mTLS automático       | □ Sí □ No     | ✓ Sí     |
+| Identidad SPIFFE      | □ Sí □ No     | ✓ Sí     |
+| Authorization L4      | □ Sí □ No     | ✓ Sí     |
+| Métricas TCP          | □ Sí □ No     | ✓ Sí     |
+| Cifrado en tránsito   | □ Sí □ No     | ✓ Sí     |
+| Zero trust networking | □ Sí □ No     | ✓ Sí     |
 
 **Si todo es Sí y L7 es No**: ztunnel (ambient sin waypoint) es suficiente
 
@@ -400,17 +403,17 @@ Al completar este documento:
 
 ### 5.1 Tabla de Decisión Rápida
 
-| Situación | Recomendación | Razón |
-|-----------|---------------|-------|
-| Cluster nuevo, requisitos simples | Ambient | Menos overhead, más simple |
-| Cluster existente con sidecars | Mantener sidecar | Migración tiene costo |
-| Todos los services necesitan L7 | Sidecar | Evita hop adicional de waypoint |
-| <20% services necesitan L7 | Ambient + waypoints selectivos | Mejor uso de recursos |
-| Ultra-low latency requerido | Ambient (L4) o bypass | Mínimo overhead |
-| WASM extensivo | Sidecar | Ambient no soporta WASM en ztunnel |
-| Compliance estricto | Sidecar | Más maduro, mejor documentado |
-| Recursos muy limitados | Ambient | 10-50x menos RAM |
-| Upgrades frecuentes del mesh | Ambient | No requiere restart pods |
+| Situación                         | Recomendación                  | Razón                              |
+| --------------------------------- | ------------------------------ | ---------------------------------- |
+| Cluster nuevo, requisitos simples | Ambient                        | Menos overhead, más simple         |
+| Cluster existente con sidecars    | Mantener sidecar               | Migración tiene costo              |
+| Todos los services necesitan L7   | Sidecar                        | Evita hop adicional de waypoint    |
+| <20% services necesitan L7        | Ambient + waypoints selectivos | Mejor uso de recursos              |
+| Ultra-low latency requerido       | Ambient (L4) o bypass          | Mínimo overhead                    |
+| WASM extensivo                    | Sidecar                        | Ambient no soporta WASM en ztunnel |
+| Compliance estricto               | Sidecar                        | Más maduro, mejor documentado      |
+| Recursos muy limitados            | Ambient                        | 10-50x menos RAM                   |
+| Upgrades frecuentes del mesh      | Ambient                        | No requiere restart pods           |
 
 ### 5.2 Flowchart de Decisión
 
@@ -544,4 +547,3 @@ Al completar este documento:
 ---
 
 **Siguiente Módulo**: [../06_avanzado/envoy/custom_filters.md](../06_avanzado/envoy/custom_filters.md) - Temas Avanzados
-

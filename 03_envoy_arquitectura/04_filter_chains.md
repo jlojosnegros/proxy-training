@@ -1,15 +1,18 @@
 # Filter Chains en Envoy
 
 ---
+
 **Módulo**: 3 - Arquitectura de Envoy
 **Tema**: Network y HTTP Filter Chains
 **Tiempo estimado**: 3 horas
 **Prerrequisitos**: [03_life_of_request.md](03_life_of_request.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Diferenciarás network filters de HTTP filters
 - Entenderás cómo se encadenan y ejecutan
 - Conocerás los filters más importantes
@@ -50,11 +53,11 @@ Al completar este documento:
 
 ### 1.2 Resumen
 
-| Tipo | Capa | Cuándo se ejecuta | Ejemplos |
-|------|------|-------------------|----------|
-| **Listener Filter** | Pre-connection | Antes de seleccionar filter chain | TLS Inspector |
-| **Network Filter** | L4 | Por conexión | TCP Proxy, HCM |
-| **HTTP Filter** | L7 | Por request (dentro de HCM) | Router, JWT, RBAC |
+| Tipo                | Capa           | Cuándo se ejecuta                 | Ejemplos          |
+| ------------------- | -------------- | --------------------------------- | ----------------- |
+| **Listener Filter** | Pre-connection | Antes de seleccionar filter chain | TLS Inspector     |
+| **Network Filter**  | L4             | Por conexión                      | TCP Proxy, HCM    |
+| **HTTP Filter**     | L7             | Por request (dentro de HCM)       | Router, JWT, RBAC |
 
 ---
 
@@ -131,24 +134,24 @@ public:
 
 ```yaml
 listeners:
-- name: tcp_listener
-  filter_chains:
-  - filters:
-    # Primero: external authorization
-    - name: envoy.filters.network.ext_authz
-      typed_config:
-        "@type": type.googleapis.com/envoy.extensions.filters.network.ext_authz.v3.ExtAuthz
-        stat_prefix: ext_authz
-        grpc_service:
-          envoy_grpc:
-            cluster_name: authz_cluster
+  - name: tcp_listener
+    filter_chains:
+      - filters:
+          # Primero: external authorization
+          - name: envoy.filters.network.ext_authz
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.ext_authz.v3.ExtAuthz
+              stat_prefix: ext_authz
+              grpc_service:
+                envoy_grpc:
+                  cluster_name: authz_cluster
 
-    # Segundo: TCP proxy (terminal)
-    - name: envoy.filters.network.tcp_proxy
-      typed_config:
-        "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
-        stat_prefix: tcp
-        cluster: backend_cluster
+          # Segundo: TCP proxy (terminal)
+          - name: envoy.filters.network.tcp_proxy
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+              stat_prefix: tcp
+              cluster: backend_cluster
 ```
 
 ---
@@ -292,50 +295,51 @@ FilterHeadersStatus RBACFilter::decodeHeaders(
 ```
 
 **Configuración**:
+
 ```yaml
 http_filters:
-- name: envoy.filters.http.rbac
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.rbac.v3.RBAC
-    rules:
-      action: ALLOW
-      policies:
-        "service-admin":
-          permissions:
-          - any: true
-          principals:
-          - authenticated:
-              principal_name:
-                exact: "spiffe://cluster.local/ns/admin/sa/admin"
+  - name: envoy.filters.http.rbac
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.rbac.v3.RBAC
+      rules:
+        action: ALLOW
+        policies:
+          "service-admin":
+            permissions:
+              - any: true
+            principals:
+              - authenticated:
+                  principal_name:
+                    exact: "spiffe://cluster.local/ns/admin/sa/admin"
 ```
 
 ### 4.3 Rate Limit Filter
 
 ```yaml
 http_filters:
-- name: envoy.filters.http.local_ratelimit
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
-    stat_prefix: http_local_rate_limiter
-    token_bucket:
-      max_tokens: 1000
-      tokens_per_fill: 100
-      fill_interval: 1s
-    filter_enabled:
-      runtime_key: local_rate_limit_enabled
-      default_value:
-        numerator: 100
-        denominator: HUNDRED
-    filter_enforced:
-      runtime_key: local_rate_limit_enforced
-      default_value:
-        numerator: 100
-        denominator: HUNDRED
-    response_headers_to_add:
-    - append: false
-      header:
-        key: x-rate-limit-remaining
-        value: "%REMAINING_TOKENS%"
+  - name: envoy.filters.http.local_ratelimit
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+      stat_prefix: http_local_rate_limiter
+      token_bucket:
+        max_tokens: 1000
+        tokens_per_fill: 100
+        fill_interval: 1s
+      filter_enabled:
+        runtime_key: local_rate_limit_enabled
+        default_value:
+          numerator: 100
+          denominator: HUNDRED
+      filter_enforced:
+        runtime_key: local_rate_limit_enforced
+        default_value:
+          numerator: 100
+          denominator: HUNDRED
+      response_headers_to_add:
+        - append: false
+          header:
+            key: x-rate-limit-remaining
+            value: "%REMAINING_TOKENS%"
 ```
 
 ### 4.4 Fault Injection Filter
@@ -344,19 +348,19 @@ http_filters:
 
 ```yaml
 http_filters:
-- name: envoy.filters.http.fault
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.fault.v3.HTTPFault
-    delay:
-      fixed_delay: 5s
-      percentage:
-        numerator: 10
-        denominator: HUNDRED
-    abort:
-      http_status: 503
-      percentage:
-        numerator: 5
-        denominator: HUNDRED
+  - name: envoy.filters.http.fault
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.fault.v3.HTTPFault
+      delay:
+        fixed_delay: 5s
+        percentage:
+          numerator: 10
+          denominator: HUNDRED
+      abort:
+        http_status: 503
+        percentage:
+          numerator: 5
+          denominator: HUNDRED
 ```
 
 ---
@@ -517,33 +521,33 @@ REGISTER_FACTORY(MyFilterFactory,
 
 ```yaml
 http_filters:
-# 1. CORS (primero para preflight)
-- name: envoy.filters.http.cors
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors
+  # 1. CORS (primero para preflight)
+  - name: envoy.filters.http.cors
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors
 
-# 2. Rate limiting
-- name: envoy.filters.http.local_ratelimit
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
-    # ...config...
+  # 2. Rate limiting
+  - name: envoy.filters.http.local_ratelimit
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+      # ...config...
 
-# 3. JWT Authentication
-- name: envoy.filters.http.jwt_authn
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
-    # ...config...
+  # 3. JWT Authentication
+  - name: envoy.filters.http.jwt_authn
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
+      # ...config...
 
-# 4. RBAC Authorization
-- name: envoy.filters.http.rbac
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.rbac.v3.RBAC
-    # ...config...
+  # 4. RBAC Authorization
+  - name: envoy.filters.http.rbac
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.rbac.v3.RBAC
+      # ...config...
 
-# 5. Router (SIEMPRE último)
-- name: envoy.filters.http.router
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  # 5. Router (SIEMPRE último)
+  - name: envoy.filters.http.router
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 ```
 
 ---

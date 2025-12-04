@@ -1,15 +1,18 @@
 # Proxy Layer 4 en Profundidad
 
 ---
+
 **Módulo**: 2 - Proxies - Conceptos Fundamentales
 **Tema**: Proxy L4
 **Tiempo estimado**: 2 horas
 **Prerrequisitos**: [01_que_es_proxy.md](01_que_es_proxy.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás cómo opera un proxy L4
 - Sabrás qué decisiones puede tomar y cuáles no
 - Comprenderás el modelo de ztunnel como proxy L4
@@ -59,17 +62,17 @@ Un proxy L4 opera en la **capa de transporte** del modelo OSI. Solo tiene acceso
 
 ### 1.2 Qué Puede y No Puede Hacer
 
-| Capacidad | Proxy L4 | Por qué |
-|-----------|----------|---------|
-| **Routing por IP/puerto** | ✓ | Visible en headers L3/L4 |
-| **mTLS** | ✓ | TLS opera en L4/L5 |
-| **Connection-level metrics** | ✓ | Bytes, conexiones, latencia |
-| **Load balancing** | ✓ | Puede seleccionar backend |
-| **Routing por URL path** | ✗ | Path está en payload HTTP |
-| **Routing por header** | ✗ | Headers están en payload |
-| **JWT validation** | ✗ | JWT está en payload |
-| **gRPC method routing** | ✗ | Método está en HTTP headers |
-| **Request/response modification** | ✗ | No entiende el protocolo |
+| Capacidad                         | Proxy L4 | Por qué                     |
+| --------------------------------- | -------- | --------------------------- |
+| **Routing por IP/puerto**         | ✓        | Visible en headers L3/L4    |
+| **mTLS**                          | ✓        | TLS opera en L4/L5          |
+| **Connection-level metrics**      | ✓        | Bytes, conexiones, latencia |
+| **Load balancing**                | ✓        | Puede seleccionar backend   |
+| **Routing por URL path**          | ✗        | Path está en payload HTTP   |
+| **Routing por header**            | ✗        | Headers están en payload    |
+| **JWT validation**                | ✗        | JWT está en payload         |
+| **gRPC method routing**           | ✗        | Método está en HTTP headers |
+| **Request/response modification** | ✗        | No entiende el protocolo    |
 
 ### 1.3 El Flujo de un Proxy L4
 
@@ -157,6 +160,7 @@ ztunnel es un **proxy L4 puro** diseñado específicamente para Istio ambient mo
 ### 2.2 Flujo de Tráfico en ztunnel
 
 **Outbound (Pod → External)**:
+
 ```
 ┌────────┐      iptables        ┌──────────┐       HBONE        ┌──────────┐
 │ Pod A  │ ─────redirect───────>│ ztunnel  │─────mTLS────────>│ ztunnel  │
@@ -172,6 +176,7 @@ ztunnel es un **proxy L4 puro** diseñado específicamente para Istio ambient mo
 ```
 
 **Inbound (External → Pod)**:
+
 ```
 ┌──────────┐     HBONE         ┌──────────┐     plaintext    ┌────────┐
 │ ztunnel  │────mTLS──────────>│ ztunnel  │─────redirect────>│ Pod B  │
@@ -189,6 +194,7 @@ ztunnel es un **proxy L4 puro** diseñado específicamente para Istio ambient mo
 ### 2.3 Código de ztunnel
 
 El core del proxy está en:
+
 ```
 src/proxy/
 ```
@@ -235,32 +241,32 @@ Envoy también puede actuar como proxy L4 usando el filtro `tcp_proxy`:
 ```yaml
 static_resources:
   listeners:
-  - name: tcp_listener
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: 10000
-    filter_chains:
-    - filters:
-      - name: envoy.filters.network.tcp_proxy
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
-          stat_prefix: tcp_stats
-          cluster: backend_cluster
+    - name: tcp_listener
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 10000
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.tcp_proxy
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+                stat_prefix: tcp_stats
+                cluster: backend_cluster
 
   clusters:
-  - name: backend_cluster
-    connect_timeout: 5s
-    type: STATIC
-    load_assignment:
-      cluster_name: backend_cluster
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              socket_address:
-                address: 10.0.1.5
-                port_value: 8080
+    - name: backend_cluster
+      connect_timeout: 5s
+      type: STATIC
+      load_assignment:
+        cluster_name: backend_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 10.0.1.5
+                      port_value: 8080
 ```
 
 ### 3.2 Código
@@ -270,6 +276,7 @@ source/extensions/filters/network/tcp_proxy/tcp_proxy.cc
 ```
 
 Este filtro:
+
 1. Recibe conexión downstream
 2. Selecciona upstream basado en cluster config
 3. Conecta a upstream
@@ -298,12 +305,12 @@ Cuando solo necesitas cifrado sin L7:
 
 Para protocolos que Envoy no parsea nativamente:
 
-| Protocolo | Proxy L4 | Proxy L7 |
-|-----------|----------|----------|
-| MySQL | ✓ TCP proxy | Requiere codec específico |
-| Redis | ✓ TCP proxy | Envoy tiene redis_proxy |
-| Kafka | ✓ TCP proxy | Requiere codec |
-| Custom binary | ✓ TCP proxy | No soportado |
+| Protocolo     | Proxy L4    | Proxy L7                  |
+| ------------- | ----------- | ------------------------- |
+| MySQL         | ✓ TCP proxy | Requiere codec específico |
+| Redis         | ✓ TCP proxy | Envoy tiene redis_proxy   |
+| Kafka         | ✓ TCP proxy | Requiere codec            |
+| Custom binary | ✓ TCP proxy | No soportado              |
 
 ### 4.3 Alto Rendimiento
 
@@ -397,16 +404,18 @@ L4 solo puede reportar:
 ## 7. Referencias en el Código
 
 ### ztunnel
-| Archivo | Descripción |
-|---------|-------------|
-| `src/proxy/` | Core proxy implementation |
-| `ARCHITECTURE.md` | Puertos y flujo |
+
+| Archivo           | Descripción               |
+| ----------------- | ------------------------- |
+| `src/proxy/`      | Core proxy implementation |
+| `ARCHITECTURE.md` | Puertos y flujo           |
 
 ### Envoy
-| Archivo | Descripción |
-|---------|-------------|
-| `source/extensions/filters/network/tcp_proxy/tcp_proxy.cc` | TCP proxy filter |
-| `source/common/network/connection_impl.h` | Connection handling |
+
+| Archivo                                                    | Descripción         |
+| ---------------------------------------------------------- | ------------------- |
+| `source/extensions/filters/network/tcp_proxy/tcp_proxy.cc` | TCP proxy filter    |
+| `source/common/network/connection_impl.h`                  | Connection handling |
 
 ---
 

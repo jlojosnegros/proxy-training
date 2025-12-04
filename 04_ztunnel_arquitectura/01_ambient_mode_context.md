@@ -1,15 +1,18 @@
 # Istio Ambient Mode y Contexto de ztunnel
 
 ---
+
 **Módulo**: 4 - Arquitectura de ztunnel
 **Tema**: Contexto de Ambient Mode
 **Tiempo estimado**: 2 horas
 **Prerrequisitos**: Módulos 1-3 completos
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás qué es Istio ambient mode
 - Conocerás el rol de ztunnel en la arquitectura
 - Comprenderás por qué se creó ztunnel
@@ -50,19 +53,20 @@ Al completar este documento:
 
 ### 1.2 Problemas del Modelo Sidecar
 
-| Problema | Descripción | Impacto |
-|----------|-------------|---------|
-| **Overhead de recursos** | ~50-100MB RAM por sidecar | Cluster de 1000 pods = 50-100GB RAM |
-| **Latencia** | Parsing L7 en cada hop | +1-5ms por request |
-| **Complejidad de upgrade** | Cada pod necesita restart | Disruption durante updates |
-| **Startup time** | Envoy inicia con el pod | Pods lentos para arrancar |
-| **Seguridad** | Sidecar tiene acceso al pod | Superficie de ataque mayor |
+| Problema                   | Descripción                 | Impacto                             |
+| -------------------------- | --------------------------- | ----------------------------------- |
+| **Overhead de recursos**   | ~50-100MB RAM por sidecar   | Cluster de 1000 pods = 50-100GB RAM |
+| **Latencia**               | Parsing L7 en cada hop      | +1-5ms por request                  |
+| **Complejidad de upgrade** | Cada pod necesita restart   | Disruption durante updates          |
+| **Startup time**           | Envoy inicia con el pod     | Pods lentos para arrancar           |
+| **Seguridad**              | Sidecar tiene acceso al pod | Superficie de ataque mayor          |
 
 ### 1.3 La Pregunta Clave
 
 > "¿Realmente TODOS los servicios necesitan L7?"
 
 La respuesta: **No**. Muchos solo necesitan:
+
 - mTLS (cifrado)
 - Identity (autenticación)
 - L4 authorization
@@ -112,14 +116,14 @@ La respuesta: **No**. Muchos solo necesitan:
 
 ### 2.2 Comparación
 
-| Aspecto | Sidecar | Ambient |
-|---------|---------|---------|
-| **Proxies por pod** | 1 Envoy | 0 (ztunnel en nodo) |
-| **RAM overhead** | ~50-100MB/pod | ~30MB/nodo |
-| **L4 features** | Siempre | Siempre (ztunnel) |
-| **L7 features** | Siempre | Solo si waypoint |
-| **Upgrade** | Restart pods | Restart ztunnel DaemonSet |
-| **Startup** | Con cada pod | Ya corriendo |
+| Aspecto             | Sidecar       | Ambient                   |
+| ------------------- | ------------- | ------------------------- |
+| **Proxies por pod** | 1 Envoy       | 0 (ztunnel en nodo)       |
+| **RAM overhead**    | ~50-100MB/pod | ~30MB/nodo                |
+| **L4 features**     | Siempre       | Siempre (ztunnel)         |
+| **L7 features**     | Siempre       | Solo si waypoint          |
+| **Upgrade**         | Restart pods  | Restart ztunnel DaemonSet |
+| **Startup**         | Con cada pod  | Ya corriendo              |
 
 ---
 
@@ -159,13 +163,13 @@ keeping a narrow feature set."
 
 ### 3.3 Por qué Rust
 
-| Razón | Beneficio |
-|-------|-----------|
-| **Memory safety** | Sin buffer overflows, use-after-free |
-| **Performance** | Comparable a C/C++ |
-| **Async native** | Tokio runtime eficiente |
-| **Modern tooling** | Cargo, testing, etc. |
-| **Security** | Menos CVEs que C/C++ |
+| Razón              | Beneficio                            |
+| ------------------ | ------------------------------------ |
+| **Memory safety**  | Sin buffer overflows, use-after-free |
+| **Performance**    | Comparable a C/C++                   |
+| **Async native**   | Tokio runtime eficiente              |
+| **Modern tooling** | Cargo, testing, etc.                 |
+| **Security**       | Menos CVEs que C/C++                 |
 
 ---
 
@@ -189,13 +193,13 @@ spec:
   template:
     spec:
       containers:
-      - name: ztunnel
-        image: istio/ztunnel:latest
-        securityContext:
-          capabilities:
-            add:
-            - NET_ADMIN  # Para iptables
-            - SYS_ADMIN  # Para network namespaces
+        - name: ztunnel
+          image: istio/ztunnel:latest
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN # Para iptables
+                - SYS_ADMIN # Para network namespaces
 ```
 
 ### 4.2 Flujo de Tráfico
@@ -270,17 +274,17 @@ HBONE (HTTP-Based Overlay Network Encapsulation):
 
 ### 5.1 Tabla Detallada
 
-| Característica | Envoy | ztunnel |
-|----------------|-------|---------|
-| **Lenguaje** | C++20 | Rust |
-| **Líneas de código** | ~500K | ~30K |
-| **Capa** | L4 + L7 | Solo L4 |
-| **HTTP parsing** | Sí | No |
-| **gRPC support** | Sí | No (payload opaco) |
-| **Filter chain** | Extensible | Mínimo |
-| **WASM** | Sí | No |
-| **Memoria típica** | 50-100MB | 20-50MB |
-| **Startup time** | ~1-2s | ~100ms |
+| Característica       | Envoy      | ztunnel            |
+| -------------------- | ---------- | ------------------ |
+| **Lenguaje**         | C++20      | Rust               |
+| **Líneas de código** | ~500K      | ~30K               |
+| **Capa**             | L4 + L7    | Solo L4            |
+| **HTTP parsing**     | Sí         | No                 |
+| **gRPC support**     | Sí         | No (payload opaco) |
+| **Filter chain**     | Extensible | Mínimo             |
+| **WASM**             | Sí         | No                 |
+| **Memoria típica**   | 50-100MB   | 20-50MB            |
+| **Startup time**     | ~1-2s      | ~100ms             |
 
 ### 5.2 Cuándo Usar Cada Uno
 

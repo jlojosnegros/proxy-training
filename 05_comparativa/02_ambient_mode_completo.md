@@ -1,15 +1,18 @@
 # Istio Ambient Mode: Arquitectura Completa
 
 ---
+
 **Módulo**: 5 - Comparativa
 **Tema**: Arquitectura Ambient Mode end-to-end
 **Tiempo estimado**: 3 horas
 **Prerrequisitos**: [01_envoy_vs_ztunnel.md](01_envoy_vs_ztunnel.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás la arquitectura completa de ambient mode
 - Conocerás todos los componentes y su interacción
 - Comprenderás los flujos de tráfico en diferentes escenarios
@@ -75,13 +78,13 @@ Al completar este documento:
 
 ### 1.2 Motivación de Ambient
 
-| Problema en Sidecar | Solución en Ambient |
-|---------------------|---------------------|
-| RAM: 50-100MB por pod | ztunnel: ~50MB por nodo |
-| Upgrade = restart pods | ztunnel upgrade independiente |
-| L7 siempre (overhead) | L7 solo donde se necesita |
-| Inyección mutating webhook | Sin inyección |
-| Complejidad de debugging | Menos componentes |
+| Problema en Sidecar        | Solución en Ambient           |
+| -------------------------- | ----------------------------- |
+| RAM: 50-100MB por pod      | ztunnel: ~50MB por nodo       |
+| Upgrade = restart pods     | ztunnel upgrade independiente |
+| L7 siempre (overhead)      | L7 solo donde se necesita     |
+| Inyección mutating webhook | Sin inyección                 |
+| Complejidad de debugging   | Menos componentes             |
 
 ---
 
@@ -154,17 +157,17 @@ metadata:
   name: istiod
   namespace: istio-system
 spec:
-  replicas: 1  # O más para HA
+  replicas: 1 # O más para HA
   template:
     spec:
       containers:
-      - name: discovery
-        image: istio/pilot:latest
-        ports:
-        - containerPort: 15010  # xDS gRPC
-        - containerPort: 15012  # xDS mTLS
-        - containerPort: 15014  # Control plane monitoring
-        - containerPort: 15017  # Webhook/injection
+        - name: discovery
+          image: istio/pilot:latest
+          ports:
+            - containerPort: 15010 # xDS gRPC
+            - containerPort: 15012 # xDS mTLS
+            - containerPort: 15014 # Control plane monitoring
+            - containerPort: 15017 # Webhook/injection
 
 # Funciones:
 # • Pilot: xDS server (LDS, CDS, EDS, RDS)
@@ -184,21 +187,21 @@ metadata:
 spec:
   template:
     spec:
-      hostNetwork: true  # Puede necesitarlo para algunos modos
+      hostNetwork: true # Puede necesitarlo para algunos modos
       containers:
-      - name: ztunnel
-        image: istio/ztunnel:latest
-        securityContext:
-          capabilities:
-            add:
-            - NET_ADMIN
-            - SYS_ADMIN
-        ports:
-        - containerPort: 15001  # Outbound capture
-        - containerPort: 15006  # Inbound plaintext
-        - containerPort: 15008  # HBONE
-        - containerPort: 15020  # Metrics
-        - containerPort: 15021  # Readiness
+        - name: ztunnel
+          image: istio/ztunnel:latest
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+                - SYS_ADMIN
+          ports:
+            - containerPort: 15001 # Outbound capture
+            - containerPort: 15006 # Inbound plaintext
+            - containerPort: 15008 # HBONE
+            - containerPort: 15020 # Metrics
+            - containerPort: 15021 # Readiness
 ```
 
 #### Waypoint Proxy (L7 opcional)
@@ -209,18 +212,18 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: waypoint
-  namespace: default  # O namespace específico
+  namespace: default # O namespace específico
   labels:
     istio.io/gateway-name: waypoint
 spec:
   template:
     spec:
       containers:
-      - name: istio-proxy
-        image: istio/proxyv2:latest  # Envoy
-        ports:
-        - containerPort: 15008  # HBONE inbound
-        - containerPort: 15001  # Outbound
+        - name: istio-proxy
+          image: istio/proxyv2:latest # Envoy
+          ports:
+            - containerPort: 15008 # HBONE inbound
+            - containerPort: 15001 # Outbound
 ```
 
 #### istio-cni (Traffic Redirect)
@@ -236,10 +239,10 @@ spec:
   template:
     spec:
       containers:
-      - name: install-cni
-        # Instala plugin CNI
-      - name: istio-cni
-        # Configura redirección iptables
+        - name: install-cni
+          # Instala plugin CNI
+        - name: istio-cni
+          # Configura redirección iptables
 ```
 
 ---
@@ -444,9 +447,9 @@ metadata:
 spec:
   gatewayClassName: istio-waypoint
   listeners:
-  - name: mesh
-    port: 15008
-    protocol: HBONE
+    - name: mesh
+      port: 15008
+      protocol: HBONE
 ```
 
 ### 4.4 Configurar Políticas L7 (requiere Waypoint)
@@ -460,12 +463,12 @@ metadata:
   namespace: default
 spec:
   targetRefs:
-  - kind: Service
-    name: my-api
+    - kind: Service
+      name: my-api
   rules:
-  - from:
-    - source:
-        requestPrincipals: ["*"]
+    - from:
+        - source:
+            requestPrincipals: ["*"]
   action: ALLOW
 ---
 # RequestAuthentication para JWT
@@ -476,11 +479,11 @@ metadata:
   namespace: default
 spec:
   targetRefs:
-  - kind: Service
-    name: my-api
+    - kind: Service
+      name: my-api
   jwtRules:
-  - issuer: "https://auth.example.com"
-    jwksUri: "https://auth.example.com/.well-known/jwks.json"
+    - issuer: "https://auth.example.com"
+      jwksUri: "https://auth.example.com/.well-known/jwks.json"
 ```
 
 ---
@@ -608,9 +611,9 @@ spec:
     matchLabels:
       app: backend
   rules:
-  - from:
-    - source:
-        principals: ["cluster.local/ns/default/sa/frontend"]
+    - from:
+        - source:
+            principals: ["cluster.local/ns/default/sa/frontend"]
   action: ALLOW
 ---
 # L7 Authorization (requiere waypoint)
@@ -621,13 +624,13 @@ metadata:
   namespace: default
 spec:
   targetRefs:
-  - kind: Service
-    name: api-service
+    - kind: Service
+      name: api-service
   rules:
-  - to:
-    - operation:
-        paths: ["/api/*"]
-        methods: ["GET", "POST"]
+    - to:
+        - operation:
+            paths: ["/api/*"]
+            methods: ["GET", "POST"]
   action: ALLOW
 ```
 
@@ -665,21 +668,21 @@ spec:
 
 ### 7.2 Cuándo NO Usar Ambient
 
-| Escenario | Por qué |
-|-----------|---------|
+| Escenario                       | Por qué                        |
+| ------------------------------- | ------------------------------ |
 | **Todo el tráfico necesita L7** | Overhead de waypoint para todo |
-| **WASM extensivo** | Solo soportado en waypoint |
-| **Compliance estricto** | Sidecars más maduros |
-| **Ciertos CNIs** | Verificar compatibilidad |
+| **WASM extensivo**              | Solo soportado en waypoint     |
+| **Compliance estricto**         | Sidecars más maduros           |
+| **Ciertos CNIs**                | Verificar compatibilidad       |
 
 ### 7.3 Cuándo Usar Ambient
 
-| Escenario | Por qué |
-|-----------|---------|
-| **Mayoría L4, poco L7** | Optimal resource usage |
-| **Clusters grandes** | Ahorro significativo de RAM |
-| **Upgrades frecuentes** | Sin restart de pods |
-| **Simplicidad** | Menos componentes por pod |
+| Escenario               | Por qué                     |
+| ----------------------- | --------------------------- |
+| **Mayoría L4, poco L7** | Optimal resource usage      |
+| **Clusters grandes**    | Ahorro significativo de RAM |
+| **Upgrades frecuentes** | Sin restart de pods         |
+| **Simplicidad**         | Menos componentes por pod   |
 
 ---
 
@@ -751,14 +754,13 @@ kubectl get pods -n default -o jsonpath='{.items[*].spec.containers[*].name}' | 
 
 ## 10. Referencias
 
-| Recurso | Descripción |
-|---------|-------------|
-| [Istio Ambient Docs](https://istio.io/latest/docs/ambient/) | Documentación oficial |
+| Recurso                                                                    | Descripción            |
+| -------------------------------------------------------------------------- | ---------------------- |
+| [Istio Ambient Docs](https://istio.io/latest/docs/ambient/)                | Documentación oficial  |
 | [Ambient Architecture](https://istio.io/latest/docs/ambient/architecture/) | Arquitectura detallada |
-| [Getting Started](https://istio.io/latest/docs/ambient/getting-started/) | Tutorial inicial |
-| [ztunnel repo](https://github.com/istio/ztunnel) | Código fuente |
+| [Getting Started](https://istio.io/latest/docs/ambient/getting-started/)   | Tutorial inicial       |
+| [ztunnel repo](https://github.com/istio/ztunnel)                           | Código fuente          |
 
 ---
 
 **Siguiente**: [03_decision_framework.md](03_decision_framework.md) - Framework de Decisión
-

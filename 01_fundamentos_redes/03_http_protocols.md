@@ -1,15 +1,18 @@
 # Protocolos HTTP: HTTP/1.1, HTTP/2 y gRPC
 
 ---
+
 **Módulo**: 1 - Fundamentos de Redes
 **Tema**: Protocolos HTTP
 **Tiempo estimado**: 3 horas
 **Prerrequisitos**: [01_modelo_osi.md](01_modelo_osi.md), [02_tcp_udp.md](02_tcp_udp.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás las diferencias entre HTTP/1.1 y HTTP/2
 - Comprenderás cómo gRPC usa HTTP/2
 - Sabrás qué es multiplexing y por qué importa
@@ -40,6 +43,7 @@ Al completar este documento:
 ```
 
 **Componentes**:
+
 - **Method**: GET, POST, PUT, DELETE, PATCH, etc.
 - **Path**: `/api/users?limit=10` (incluyendo query parameters)
 - **Version**: `HTTP/1.1`
@@ -102,11 +106,13 @@ Conexión TCP única:
 ```
 
 **Soluciones en HTTP/1.1**:
+
 - **Múltiples conexiones TCP**: Los navegadores abren 6+ conexiones por dominio
 - **Pipelining**: Enviar requests sin esperar responses (poco usado, problemas de compatibilidad)
 - **Keep-Alive**: Reutilizar conexión para múltiples requests secuenciales
 
 **Connection Keep-Alive**:
+
 ```
 # Request
 GET /page1 HTTP/1.1
@@ -128,13 +134,13 @@ GET /page2 HTTP/1.1
 
 ### 2.1 Mejoras sobre HTTP/1.1
 
-| Característica | HTTP/1.1 | HTTP/2 |
-|----------------|----------|--------|
-| Formato | Texto | Binario |
-| Multiplexing | No | Sí |
-| Header compression | No | HPACK |
-| Server push | No | Sí |
-| Conexiones | Múltiples necesarias | Una suficiente |
+| Característica     | HTTP/1.1             | HTTP/2         |
+| ------------------ | -------------------- | -------------- |
+| Formato            | Texto                | Binario        |
+| Multiplexing       | No                   | Sí             |
+| Header compression | No                   | HPACK          |
+| Server push        | No                   | Sí             |
+| Conexiones         | Múltiples necesarias | Una suficiente |
 
 ### 2.2 Conceptos Fundamentales de HTTP/2
 
@@ -201,6 +207,7 @@ HTTP/2 (multiplexado):
 HTTP headers son muy repetitivos. HPACK los comprime:
 
 **Static Table**: Headers comunes predefinidos
+
 ```
 Index  Header Name                 Header Value
 1      :authority
@@ -245,6 +252,7 @@ Host: api.example.com           :path: /api/users
 ### 3.1 ¿Qué es gRPC?
 
 gRPC es un framework RPC (Remote Procedure Call) que usa:
+
 - **HTTP/2** como transporte
 - **Protocol Buffers** (protobuf) para serialización
 
@@ -363,6 +371,7 @@ source/common/http/conn_manager_impl.h:60
 ```
 
 Este componente:
+
 1. Detecta versión HTTP (HTTP/1.1, HTTP/2)
 2. Parsea requests usando el codec apropiado
 3. Crea streams para cada request
@@ -376,6 +385,7 @@ source/common/http/http2/codec_impl.cc   → HTTP/2 codec
 ```
 
 **Auto-detection**:
+
 - Por ALPN en TLS handshake (`h2` para HTTP/2)
 - Por prefijo de conexión para HTTP/2 (`PRI * HTTP/2.0`)
 
@@ -383,19 +393,19 @@ source/common/http/http2/codec_impl.cc   → HTTP/2 codec
 
 ```yaml
 listeners:
-- name: http_listener
-  address:
-    socket_address:
-      address: 0.0.0.0
-      port_value: 10000
-  filter_chains:
-  - filters:
-    - name: envoy.filters.network.http_connection_manager
-      typed_config:
-        "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-        codec_type: AUTO  # Detecta HTTP/1.1 o HTTP/2
-        # O explícitamente:
-        # codec_type: HTTP2
+  - name: http_listener
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 10000
+    filter_chains:
+      - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              codec_type: AUTO # Detecta HTTP/1.1 o HTTP/2
+              # O explícitamente:
+              # codec_type: HTTP2
 ```
 
 ### 4.4 gRPC Transcoding
@@ -404,14 +414,15 @@ Envoy puede convertir HTTP/JSON a gRPC:
 
 ```yaml
 http_filters:
-- name: envoy.filters.http.grpc_json_transcoder
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_json_transcoder.v3.GrpcJsonTranscoder
-    proto_descriptor: /path/to/descriptor.pb
-    services: ["user.v1.UserService"]
+  - name: envoy.filters.http.grpc_json_transcoder
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_json_transcoder.v3.GrpcJsonTranscoder
+      proto_descriptor: /path/to/descriptor.pb
+      services: ["user.v1.UserService"]
 ```
 
 Esto permite:
+
 ```
 # HTTP/JSON Request
 POST /v1/users/123 HTTP/1.1
@@ -445,6 +456,7 @@ Stream 2: [Frame2]─────█──────────[Frame4]
 ### 5.2 QUIC
 
 QUIC es un protocolo de transporte sobre UDP que:
+
 - Tiene streams independientes (sin HOL blocking entre streams)
 - Integra TLS 1.3
 - Tiene 0-RTT connection establishment
@@ -458,6 +470,7 @@ Stream 2: [Frame2]─────█──────────[Frame4]  Solo
 ```
 
 **En Envoy**:
+
 ```
 source/common/quic/
 ```
@@ -517,13 +530,13 @@ grpcurl -plaintext -d '{"user_id": "123"}' localhost:50051 user.v1.UserService/G
 
 ### Envoy
 
-| Archivo | Descripción |
-|---------|-------------|
-| `source/common/http/conn_manager_impl.h:60` | HTTP Connection Manager |
-| `source/common/http/http1/codec_impl.cc` | HTTP/1.1 codec |
-| `source/common/http/http2/codec_impl.cc` | HTTP/2 codec |
-| `source/extensions/filters/http/grpc_json_transcoder/` | gRPC transcoding |
-| `source/common/quic/` | QUIC/HTTP/3 |
+| Archivo                                                | Descripción             |
+| ------------------------------------------------------ | ----------------------- |
+| `source/common/http/conn_manager_impl.h:60`            | HTTP Connection Manager |
+| `source/common/http/http1/codec_impl.cc`               | HTTP/1.1 codec          |
+| `source/common/http/http2/codec_impl.cc`               | HTTP/2 codec            |
+| `source/extensions/filters/http/grpc_json_transcoder/` | gRPC transcoding        |
+| `source/common/quic/`                                  | QUIC/HTTP/3             |
 
 ---
 

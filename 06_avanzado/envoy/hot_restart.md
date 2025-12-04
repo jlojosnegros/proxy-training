@@ -1,15 +1,18 @@
 # Hot Restart en Envoy
 
 ---
+
 **Módulo**: 6 - Avanzado (Envoy)
 **Tema**: Mecanismo de Hot Restart
 **Tiempo estimado**: 2 horas
 **Prerrequisitos**: Módulo 3 completo
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás cómo funciona hot restart en Envoy
 - Conocerás el proceso de transferencia de estado
 - Comprenderás las limitaciones y trade-offs
@@ -118,14 +121,14 @@ Al completar este documento:
 
 ### 2.2 Qué se Transfiere
 
-| Datos | Se transfiere | Cómo |
-|-------|---------------|------|
-| **Listen sockets** | ✓ Sí | Unix domain socket FD passing |
-| **Stats** | ✓ Sí | Shared memory |
-| **Active connections** | ✗ No | Drain naturalmente |
-| **Connection pools** | ✗ No | Se recrean |
-| **Config** | ✗ No | Nuevo proceso lee config |
-| **Certificates** | ✗ No | Nuevo proceso carga certs |
+| Datos                  | Se transfiere | Cómo                          |
+| ---------------------- | ------------- | ----------------------------- |
+| **Listen sockets**     | ✓ Sí          | Unix domain socket FD passing |
+| **Stats**              | ✓ Sí          | Shared memory                 |
+| **Active connections** | ✗ No          | Drain naturalmente            |
+| **Connection pools**   | ✗ No          | Se recrean                    |
+| **Config**             | ✗ No          | Nuevo proceso lee config      |
+| **Certificates**       | ✗ No          | Nuevo proceso carga certs     |
 
 ---
 
@@ -224,13 +227,13 @@ envoy -c envoy.yaml --restart-epoch 1 \
 
 ### 4.2 Parámetros Importantes
 
-| Parámetro | Default | Descripción |
-|-----------|---------|-------------|
-| `--restart-epoch` | 0 | Epoch actual (incrementar en cada restart) |
-| `--drain-time-s` | 600 | Tiempo de drain en segundos |
-| `--parent-shutdown-time-s` | 900 | Tiempo máximo para shutdown del parent |
-| `--hot-restart-version` | - | Muestra versión del protocolo |
-| `--base-id` | 0 | ID base para shared memory |
+| Parámetro                  | Default | Descripción                                |
+| -------------------------- | ------- | ------------------------------------------ |
+| `--restart-epoch`          | 0       | Epoch actual (incrementar en cada restart) |
+| `--drain-time-s`           | 600     | Tiempo de drain en segundos                |
+| `--parent-shutdown-time-s` | 900     | Tiempo máximo para shutdown del parent     |
+| `--hot-restart-version`    | -       | Muestra versión del protocolo              |
+| `--base-id`                | 0       | ID base para shared memory                 |
 
 ### 4.3 Wrapper Script
 
@@ -442,12 +445,12 @@ envoy --hot-restart-version
 
 ### 8.1 Comparación
 
-| Método | Downtime | Complejidad | Use Case |
-|--------|----------|-------------|----------|
-| **Hot Restart** | Zero | Media | Config/binary updates |
-| **xDS** | Zero | Baja | Config updates only |
-| **Kill + Start** | Segundos | Baja | Non-critical |
-| **Blue/Green** | Zero | Alta | Major changes |
+| Método           | Downtime | Complejidad | Use Case              |
+| ---------------- | -------- | ----------- | --------------------- |
+| **Hot Restart**  | Zero     | Media       | Config/binary updates |
+| **xDS**          | Zero     | Baja        | Config updates only   |
+| **Kill + Start** | Segundos | Baja        | Non-critical          |
+| **Blue/Green**   | Zero     | Alta        | Major changes         |
 
 ### 8.2 Cuándo Usar Cada Uno
 
@@ -487,14 +490,13 @@ envoy --hot-restart-version
 
 ## 10. Referencias
 
-| Recurso | Descripción |
-|---------|-------------|
-| [Hot Restart Blog](https://blog.envoyproxy.io/envoy-hot-restart-1d16b14555b5) | Explicación detallada |
-| `source/server/hot_restart_impl.cc` | Implementación |
-| `source/server/drain_manager_impl.cc` | Drain logic |
+| Recurso                                                                                                           | Descripción           |
+| ----------------------------------------------------------------------------------------------------------------- | --------------------- |
+| [Hot Restart Blog](https://blog.envoyproxy.io/envoy-hot-restart-1d16b14555b5)                                     | Explicación detallada |
+| `source/server/hot_restart_impl.cc`                                                                               | Implementación        |
+| `source/server/drain_manager_impl.cc`                                                                             | Drain logic           |
 | [Envoy Docs: Hot Restart](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/operations/hot_restart) | Documentación oficial |
 
 ---
 
 **Siguiente**: [performance_tuning.md](performance_tuning.md) - Performance Tuning
-

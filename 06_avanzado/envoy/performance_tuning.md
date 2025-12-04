@@ -1,15 +1,18 @@
 # Performance Tuning en Envoy
 
 ---
+
 **Módulo**: 6 - Avanzado (Envoy)
 **Tema**: Optimización de rendimiento
 **Tiempo estimado**: 3 horas
 **Prerrequisitos**: Módulo 3 completo
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Conocerás las métricas clave de performance
 - Entenderás cómo usar profiling (pprof)
 - Sabrás configurar Envoy para alto throughput
@@ -165,9 +168,9 @@ go tool pprof -http=:8080 heap.prof
 
 # Opción 2: Bootstrap
 bootstrap_extensions:
-- name: envoy.extensions.bootstrap.internal_listener
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.bootstrap.internal_listener.v3.InternalListener
+  - name: envoy.extensions.bootstrap.internal_listener
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.bootstrap.internal_listener.v3.InternalListener
 ```
 
 ```
@@ -215,44 +218,44 @@ bootstrap_extensions:
 # Limits por listener
 static_resources:
   listeners:
-  - name: listener_0
-    per_connection_buffer_limit_bytes: 1048576  # 1MB
-    listener_filters_timeout: 5s
-    # Max connections (via iptables/nftables mejor)
+    - name: listener_0
+      per_connection_buffer_limit_bytes: 1048576 # 1MB
+      listener_filters_timeout: 5s
+      # Max connections (via iptables/nftables mejor)
 ```
 
 ### 4.2 Timeouts
 
 ```yaml
 clusters:
-- name: backend
-  connect_timeout: 5s
+  - name: backend
+    connect_timeout: 5s
 
-  # Para HTTP
-  typed_extension_protocol_options:
-    envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
-      "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
-      common_http_protocol_options:
-        idle_timeout: 3600s  # 1 hour
-      explicit_http_config:
-        http2_protocol_options:
-          initial_stream_window_size: 1048576  # 1MB
-          initial_connection_window_size: 1048576
+    # Para HTTP
+    typed_extension_protocol_options:
+      envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+        "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+        common_http_protocol_options:
+          idle_timeout: 3600s # 1 hour
+        explicit_http_config:
+          http2_protocol_options:
+            initial_stream_window_size: 1048576 # 1MB
+            initial_connection_window_size: 1048576
 ```
 
 ### 4.3 Connection Pooling
 
 ```yaml
 clusters:
-- name: backend
-  # Circuit breaker también limita connections
-  circuit_breakers:
-    thresholds:
-    - priority: DEFAULT
-      max_connections: 1000
-      max_pending_requests: 1000
-      max_requests: 10000
-      max_retries: 3
+  - name: backend
+    # Circuit breaker también limita connections
+    circuit_breakers:
+      thresholds:
+        - priority: DEFAULT
+          max_connections: 1000
+          max_pending_requests: 1000
+          max_requests: 10000
+          max_retries: 3
 ```
 
 ```
@@ -293,23 +296,23 @@ clusters:
 
 ```yaml
 http_filters:
-- name: envoy.filters.http.buffer
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.buffer.v3.Buffer
-    max_request_bytes: 10485760  # 10MB max request body
+  - name: envoy.filters.http.buffer
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.buffer.v3.Buffer
+      max_request_bytes: 10485760 # 10MB max request body
 ```
 
 ### 5.2 Per-Connection Buffers
 
 ```yaml
 listeners:
-- name: listener_0
-  per_connection_buffer_limit_bytes: 1048576  # 1MB
+  - name: listener_0
+    per_connection_buffer_limit_bytes: 1048576 # 1MB
 
 # También en cluster
 clusters:
-- name: backend
-  per_connection_buffer_limit_bytes: 1048576
+  - name: backend
+    per_connection_buffer_limit_bytes: 1048576
 ```
 
 ### 5.3 Watermarks
@@ -364,11 +367,11 @@ transport_socket:
         tls_minimum_protocol_version: TLSv1_2
         tls_maximum_protocol_version: TLSv1_3
         cipher_suites:
-        - ECDHE-RSA-AES128-GCM-SHA256  # Fast
-        - ECDHE-RSA-AES256-GCM-SHA384
+          - ECDHE-RSA-AES128-GCM-SHA256 # Fast
+          - ECDHE-RSA-AES256-GCM-SHA384
     session_ticket_keys:
       keys:
-      - filename: /etc/envoy/session_ticket.key
+        - filename: /etc/envoy/session_ticket.key
 ```
 
 ### 6.2 OCSP Stapling
@@ -376,12 +379,12 @@ transport_socket:
 ```yaml
 common_tls_context:
   tls_certificates:
-  - certificate_chain:
-      filename: /etc/certs/server.crt
-    private_key:
-      filename: /etc/certs/server.key
-    ocsp_staple:
-      filename: /etc/certs/server.ocsp
+    - certificate_chain:
+        filename: /etc/certs/server.crt
+      private_key:
+        filename: /etc/certs/server.key
+      ocsp_staple:
+        filename: /etc/certs/server.ocsp
 ```
 
 ### 6.3 TLS Performance Tips
@@ -423,13 +426,13 @@ common_tls_context:
 
 ```yaml
 http_filters:
-# Orden importa!
-# Filters que rechazan rápido primero
-- name: envoy.filters.http.ratelimit  # Reject early
-- name: envoy.filters.http.jwt_authn  # Reject early
-- name: envoy.filters.http.cors
-- name: envoy.filters.http.buffer     # Si necesitas buffer
-- name: envoy.filters.http.router     # Siempre último
+  # Orden importa!
+  # Filters que rechazan rápido primero
+  - name: envoy.filters.http.ratelimit # Reject early
+  - name: envoy.filters.http.jwt_authn # Reject early
+  - name: envoy.filters.http.cors
+  - name: envoy.filters.http.buffer # Si necesitas buffer
+  - name: envoy.filters.http.router # Siempre último
 ```
 
 ### 7.2 Deshabilitar Filters No Usados
@@ -531,14 +534,13 @@ envoy_server_memory_heap_size
 
 ## 10. Referencias
 
-| Recurso | Descripción |
-|---------|-------------|
-| [Envoy Performance](https://www.envoyproxy.io/docs/envoy/latest/faq/performance/performance) | FAQ de performance |
-| [pprof Guide](https://github.com/google/pprof) | Herramienta pprof |
-| `bazel/PPROF.md` | Guía de profiling en repo |
-| [Stats Architecture](https://blog.envoyproxy.io/envoy-stats-b65c7f363342) | Blog sobre stats |
+| Recurso                                                                                      | Descripción               |
+| -------------------------------------------------------------------------------------------- | ------------------------- |
+| [Envoy Performance](https://www.envoyproxy.io/docs/envoy/latest/faq/performance/performance) | FAQ de performance        |
+| [pprof Guide](https://github.com/google/pprof)                                               | Herramienta pprof         |
+| `bazel/PPROF.md`                                                                             | Guía de profiling en repo |
+| [Stats Architecture](https://blog.envoyproxy.io/envoy-stats-b65c7f363342)                    | Blog sobre stats          |
 
 ---
 
 **Siguiente**: [../ztunnel/rust_async_patterns.md](../ztunnel/rust_async_patterns.md) - Rust Async Patterns
-

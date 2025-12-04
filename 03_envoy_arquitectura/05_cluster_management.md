@@ -1,15 +1,18 @@
 # Cluster Management en Envoy
 
 ---
+
 **Módulo**: 3 - Arquitectura de Envoy
 **Tema**: Clusters, Load Balancing, Health Checks
 **Tiempo estimado**: 3 horas
 **Prerrequisitos**: [04_filter_chains.md](04_filter_chains.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás qué es un cluster y cómo se configura
 - Conocerás los algoritmos de load balancing
 - Comprenderás health checking y circuit breaking
@@ -69,63 +72,63 @@ class ClusterManagerImpl : public ClusterManager {
 
 ```yaml
 clusters:
-- name: api_cluster
-  type: STATIC
-  connect_timeout: 5s
-  lb_policy: ROUND_ROBIN
+  - name: api_cluster
+    type: STATIC
+    connect_timeout: 5s
+    lb_policy: ROUND_ROBIN
 
-  # Endpoints estáticos
-  load_assignment:
-    cluster_name: api_cluster
-    endpoints:
-    - lb_endpoints:
-      - endpoint:
-          address:
-            socket_address:
-              address: 10.0.1.1
-              port_value: 8080
-      - endpoint:
-          address:
-            socket_address:
-              address: 10.0.1.2
-              port_value: 8080
+    # Endpoints estáticos
+    load_assignment:
+      cluster_name: api_cluster
+      endpoints:
+        - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: 10.0.1.1
+                    port_value: 8080
+            - endpoint:
+                address:
+                  socket_address:
+                    address: 10.0.1.2
+                    port_value: 8080
 
-  # Health checks
-  health_checks:
-  - timeout: 1s
-    interval: 10s
-    healthy_threshold: 2
-    unhealthy_threshold: 3
-    http_health_check:
-      path: "/health"
+    # Health checks
+    health_checks:
+      - timeout: 1s
+        interval: 10s
+        healthy_threshold: 2
+        unhealthy_threshold: 3
+        http_health_check:
+          path: "/health"
 ```
 
 ### 2.2 Tipos de Discovery
 
-| Tipo | Descripción | Uso |
-|------|-------------|-----|
-| `STATIC` | Endpoints en config | Dev, configs simples |
-| `STRICT_DNS` | DNS lookup | Kubernetes headless services |
-| `LOGICAL_DNS` | DNS con cache | External services |
-| `EDS` | Endpoint Discovery Service | Production con xDS |
-| `ORIGINAL_DST` | IP destino original | Transparent proxy |
+| Tipo           | Descripción                | Uso                          |
+| -------------- | -------------------------- | ---------------------------- |
+| `STATIC`       | Endpoints en config        | Dev, configs simples         |
+| `STRICT_DNS`   | DNS lookup                 | Kubernetes headless services |
+| `LOGICAL_DNS`  | DNS con cache              | External services            |
+| `EDS`          | Endpoint Discovery Service | Production con xDS           |
+| `ORIGINAL_DST` | IP destino original        | Transparent proxy            |
 
 ### 2.3 Cluster Dinámico (EDS)
 
 ```yaml
 clusters:
-- name: dynamic_cluster
-  type: EDS
-  connect_timeout: 5s
-  lb_policy: ROUND_ROBIN
-  eds_cluster_config:
-    service_name: my-service
-    eds_config:
-      api_config_source:
-        api_type: GRPC
-        grpc_services:
-        - envoy_grpc:
-            cluster_name: xds_cluster
+  - name: dynamic_cluster
+    type: EDS
+    connect_timeout: 5s
+    lb_policy: ROUND_ROBIN
+    eds_cluster_config:
+      service_name: my-service
+      eds_config:
+        api_config_source:
+          api_type: GRPC
+          grpc_services:
+            - envoy_grpc:
+                cluster_name: xds_cluster
 ```
 
 ---
@@ -194,12 +197,12 @@ HostConstSharedPtr LeastRequestLoadBalancer::chooseHost(LoadBalancerContext*) {
 
 ```yaml
 clusters:
-- name: cache_cluster
-  lb_policy: RING_HASH
-  ring_hash_lb_config:
-    minimum_ring_size: 1024
-    maximum_ring_size: 8388608
-    hash_function: XX_HASH
+  - name: cache_cluster
+    lb_policy: RING_HASH
+    ring_hash_lb_config:
+      minimum_ring_size: 1024
+      maximum_ring_size: 8388608
+      hash_function: XX_HASH
 ```
 
 ```cpp
@@ -224,22 +227,22 @@ Ring:
 ```yaml
 route_config:
   virtual_hosts:
-  - routes:
-    - match:
-        prefix: "/"
-      route:
-        cluster: cache_cluster
-        hash_policy:
-        # Hash por header
-        - header:
-            header_name: "x-user-id"
-        # O por cookie
-        - cookie:
-            name: "session"
-            ttl: 3600s
-        # O por IP
-        - connection_properties:
-            source_ip: true
+    - routes:
+        - match:
+            prefix: "/"
+          route:
+            cluster: cache_cluster
+            hash_policy:
+              # Hash por header
+              - header:
+                  header_name: "x-user-id"
+              # O por cookie
+              - cookie:
+                  name: "session"
+                  ttl: 3600s
+              # O por IP
+              - connection_properties:
+                  source_ip: true
 ```
 
 ---
@@ -250,31 +253,31 @@ route_config:
 
 ```yaml
 health_checks:
-# HTTP health check
-- timeout: 1s
-  interval: 10s
-  healthy_threshold: 2
-  unhealthy_threshold: 3
-  http_health_check:
-    path: "/health"
-    expected_statuses:
-    - start: 200
-      end: 299
+  # HTTP health check
+  - timeout: 1s
+    interval: 10s
+    healthy_threshold: 2
+    unhealthy_threshold: 3
+    http_health_check:
+      path: "/health"
+      expected_statuses:
+        - start: 200
+          end: 299
 
-# TCP health check
-- timeout: 1s
-  interval: 10s
-  tcp_health_check:
-    send:
-      text: "ping"
-    receive:
-    - text: "pong"
+  # TCP health check
+  - timeout: 1s
+    interval: 10s
+    tcp_health_check:
+      send:
+        text: "ping"
+      receive:
+        - text: "pong"
 
-# gRPC health check
-- timeout: 1s
-  interval: 10s
-  grpc_health_check:
-    service_name: "myservice"
+  # gRPC health check
+  - timeout: 1s
+    interval: 10s
+    grpc_health_check:
+      service_name: "myservice"
 ```
 
 ### 4.2 Código de Health Checker
@@ -307,22 +310,22 @@ Detecta hosts problemáticos basándose en tráfico real:
 
 ```yaml
 clusters:
-- name: api_cluster
-  outlier_detection:
-    # Eyectar después de N errores consecutivos
-    consecutive_5xx: 5
+  - name: api_cluster
+    outlier_detection:
+      # Eyectar después de N errores consecutivos
+      consecutive_5xx: 5
 
-    # Tiempo mínimo de eyección
-    base_ejection_time: 30s
+      # Tiempo mínimo de eyección
+      base_ejection_time: 30s
 
-    # Máximo % de hosts eyectados
-    max_ejection_percent: 50
+      # Máximo % de hosts eyectados
+      max_ejection_percent: 50
 
-    # Eyectar por errores de gateway
-    consecutive_gateway_failure: 5
+      # Eyectar por errores de gateway
+      consecutive_gateway_failure: 5
 
-    # Intervalo de análisis
-    interval: 10s
+      # Intervalo de análisis
+      interval: 10s
 ```
 
 ---
@@ -347,25 +350,25 @@ Requests ──────────>│     │─────────�
 
 ```yaml
 clusters:
-- name: api_cluster
-  circuit_breakers:
-    thresholds:
-    - priority: DEFAULT
-      # Máximo de conexiones TCP
-      max_connections: 100
+  - name: api_cluster
+    circuit_breakers:
+      thresholds:
+        - priority: DEFAULT
+          # Máximo de conexiones TCP
+          max_connections: 100
 
-      # Máximo de requests pendientes
-      max_pending_requests: 100
+          # Máximo de requests pendientes
+          max_pending_requests: 100
 
-      # Máximo de requests concurrentes
-      max_requests: 1000
+          # Máximo de requests concurrentes
+          max_requests: 1000
 
-      # Máximo de retries simultáneos
-      max_retries: 3
+          # Máximo de retries simultáneos
+          max_retries: 3
 
-    - priority: HIGH
-      max_connections: 200
-      max_requests: 2000
+        - priority: HIGH
+          max_connections: 200
+          max_requests: 2000
 ```
 
 ### 5.3 Código
@@ -438,16 +441,16 @@ void ClusterCircuitBreakerStats::checkTresholds() {
 
 ```yaml
 clusters:
-- name: api_cluster
-  http2_protocol_options:
-    max_concurrent_streams: 100
+  - name: api_cluster
+    http2_protocol_options:
+      max_concurrent_streams: 100
 
-  # Opciones de conexión upstream
-  upstream_connection_options:
-    tcp_keepalive:
-      keepalive_probes: 3
-      keepalive_time: 60
-      keepalive_interval: 10
+    # Opciones de conexión upstream
+    upstream_connection_options:
+      tcp_keepalive:
+        keepalive_probes: 3
+        keepalive_time: 60
+        keepalive_interval: 10
 ```
 
 ---
@@ -458,59 +461,59 @@ clusters:
 
 ```yaml
 clusters:
-- name: api_cluster
-  load_assignment:
-    cluster_name: api_cluster
-    endpoints:
-    # Priority 0 (highest) - Local datacenter
-    - priority: 0
-      lb_endpoints:
-      - endpoint:
-          address:
-            socket_address:
-              address: 10.0.1.1
-              port_value: 8080
+  - name: api_cluster
+    load_assignment:
+      cluster_name: api_cluster
+      endpoints:
+        # Priority 0 (highest) - Local datacenter
+        - priority: 0
+          lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: 10.0.1.1
+                    port_value: 8080
 
-    # Priority 1 - Remote datacenter
-    - priority: 1
-      lb_endpoints:
-      - endpoint:
-          address:
-            socket_address:
-              address: 10.0.2.1
-              port_value: 8080
+        # Priority 1 - Remote datacenter
+        - priority: 1
+          lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: 10.0.2.1
+                    port_value: 8080
 ```
 
 ### 7.2 Locality Aware Routing
 
 ```yaml
 clusters:
-- name: api_cluster
-  common_lb_config:
-    locality_weighted_lb_config: {}
-  load_assignment:
-    endpoints:
-    - locality:
-        region: us-east-1
-        zone: us-east-1a
-      lb_endpoints:
-      - endpoint:
-          address:
-            socket_address:
-              address: 10.0.1.1
-              port_value: 8080
-      load_balancing_weight: 100
+  - name: api_cluster
+    common_lb_config:
+      locality_weighted_lb_config: {}
+    load_assignment:
+      endpoints:
+        - locality:
+            region: us-east-1
+            zone: us-east-1a
+          lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: 10.0.1.1
+                    port_value: 8080
+          load_balancing_weight: 100
 
-    - locality:
-        region: us-west-2
-        zone: us-west-2a
-      lb_endpoints:
-      - endpoint:
-          address:
-            socket_address:
-              address: 10.0.2.1
-              port_value: 8080
-      load_balancing_weight: 50
+        - locality:
+            region: us-west-2
+            zone: us-west-2a
+          lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: 10.0.2.1
+                    port_value: 8080
+          load_balancing_weight: 50
 ```
 
 ---

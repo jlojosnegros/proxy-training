@@ -1,15 +1,18 @@
 # Modelo de Threading en Envoy
 
 ---
+
 **Módulo**: 3 - Arquitectura de Envoy
 **Tema**: Threading Model
 **Tiempo estimado**: 3 horas
 **Prerrequisitos**: [01_vision_general.md](01_vision_general.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás el modelo de threading de Envoy
 - Comprenderás el event loop y cómo maneja I/O
 - Sabrás qué es thread-local storage y por qué importa
@@ -57,10 +60,10 @@ Envoy usa un modelo **single-process, multi-threaded**:
 
 ### 1.2 Responsabilidades por Thread
 
-| Thread | Responsabilidad | Código |
-|--------|-----------------|--------|
-| **Main** | Config, admin, stats | `source/server/server.cc` |
-| **Workers** | Request processing | `source/server/worker_impl.h` |
+| Thread      | Responsabilidad      | Código                        |
+| ----------- | -------------------- | ----------------------------- |
+| **Main**    | Config, admin, stats | `source/server/server.cc`     |
+| **Workers** | Request processing   | `source/server/worker_impl.h` |
 
 **Principio clave**: Los workers **casi nunca** comparten estado mutable. Cada uno tiene su propia copia de la configuración.
 
@@ -165,6 +168,7 @@ dispatcher.post([this]() {
 La configuración cambia dinámicamente (via xDS). ¿Cómo actualizar todos los workers sin locks?
 
 **Solución incorrecta**: Mutex global
+
 ```cpp
 // MAL: Contención alta en hot path
 std::mutex config_mutex;
@@ -178,6 +182,7 @@ void handleRequest() {
 ```
 
 **Solución de Envoy**: Thread-Local Storage
+
 ```cpp
 // BIEN: Cada worker tiene su propia copia
 ThreadLocal::TypedSlot<Config> config_slot;
@@ -240,6 +245,7 @@ MyData& data = slot->get();
 ```
 
 **Usos principales de TLS**:
+
 - Cluster configuration
 - Route tables
 - Runtime feature flags
@@ -402,13 +408,13 @@ Envoy puede reiniciarse sin perder conexiones:
 
 ### 7.1 Archivos Principales
 
-| Archivo | Descripción |
-|---------|-------------|
-| `source/common/event/dispatcher_impl.h:36` | Event loop |
-| `source/server/worker_impl.h:30-100` | Worker thread |
-| `source/common/thread_local/thread_local_impl.h:50-200` | TLS |
-| `source/common/network/connection_impl.h:50-150` | Connection |
-| `source/server/hot_restart_impl.cc` | Hot restart |
+| Archivo                                                 | Descripción   |
+| ------------------------------------------------------- | ------------- |
+| `source/common/event/dispatcher_impl.h:36`              | Event loop    |
+| `source/server/worker_impl.h:30-100`                    | Worker thread |
+| `source/common/thread_local/thread_local_impl.h:50-200` | TLS           |
+| `source/common/network/connection_impl.h:50-150`        | Connection    |
+| `source/server/hot_restart_impl.cc`                     | Hot restart   |
 
 ### 7.2 Worker Initialization
 

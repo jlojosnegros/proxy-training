@@ -1,15 +1,18 @@
 # xDS Protocol: Configuración Dinámica
 
 ---
+
 **Módulo**: 3 - Arquitectura de Envoy
 **Tema**: xDS Protocol
 **Tiempo estimado**: 3 horas
 **Prerrequisitos**: [05_cluster_management.md](05_cluster_management.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás el modelo xDS para configuración dinámica
 - Conocerás los diferentes tipos de Discovery Services
 - Comprenderás el flujo de suscripción y actualización
@@ -22,6 +25,7 @@ Al completar este documento:
 ### 1.1 El Problema
 
 Configuración estática tiene limitaciones:
+
 - Requiere restart para cambios
 - No escala a miles de endpoints
 - No se integra con service discovery
@@ -65,17 +69,17 @@ xDS (x Discovery Service) es un conjunto de APIs para configuración dinámica:
 
 ### 2.1 Discovery Services
 
-| API | Nombre Completo | Qué Configura |
-|-----|-----------------|---------------|
-| **LDS** | Listener Discovery Service | Listeners (puertos, filter chains) |
-| **RDS** | Route Discovery Service | Rutas HTTP (virtual hosts, paths) |
-| **CDS** | Cluster Discovery Service | Clusters (upstream groups) |
-| **EDS** | Endpoint Discovery Service | Endpoints (IPs de backends) |
-| **SDS** | Secret Discovery Service | Certificados TLS |
-| **VHDS** | Virtual Host Discovery Service | Virtual hosts dinámicos |
-| **SRDS** | Scoped Route Discovery Service | Rutas con scope |
-| **RTDS** | Runtime Discovery Service | Runtime flags |
-| **ECDS** | Extension Config Discovery Service | Configuración de extensiones |
+| API      | Nombre Completo                    | Qué Configura                      |
+| -------- | ---------------------------------- | ---------------------------------- |
+| **LDS**  | Listener Discovery Service         | Listeners (puertos, filter chains) |
+| **RDS**  | Route Discovery Service            | Rutas HTTP (virtual hosts, paths)  |
+| **CDS**  | Cluster Discovery Service          | Clusters (upstream groups)         |
+| **EDS**  | Endpoint Discovery Service         | Endpoints (IPs de backends)        |
+| **SDS**  | Secret Discovery Service           | Certificados TLS                   |
+| **VHDS** | Virtual Host Discovery Service     | Virtual hosts dinámicos            |
+| **SRDS** | Scoped Route Discovery Service     | Rutas con scope                    |
+| **RTDS** | Runtime Discovery Service          | Runtime flags                      |
+| **ECDS** | Extension Config Discovery Service | Configuración de extensiones       |
 
 ### 2.2 Orden de Dependencias
 
@@ -179,6 +183,7 @@ DiscoveryRequest {
 ### 4.1 ¿Por qué ADS?
 
 Sin ADS, cada tipo de recurso usa un stream separado:
+
 - Posibles race conditions
 - Configuración inconsistente temporal
 
@@ -191,16 +196,16 @@ dynamic_resources:
     api_type: GRPC
     transport_api_version: V3
     grpc_services:
-    - envoy_grpc:
-        cluster_name: xds_cluster
+      - envoy_grpc:
+          cluster_name: xds_cluster
 
   lds_config:
     resource_api_version: V3
-    ads: {}  # Usar ADS
+    ads: {} # Usar ADS
 
   cds_config:
     resource_api_version: V3
-    ads: {}  # Usar ADS
+    ads: {} # Usar ADS
 ```
 
 ### 4.2 Orden de Entrega con ADS
@@ -375,13 +380,13 @@ message Listener {
 
 ### 7.2 Lo que Istio Envía
 
-| Recurso | Contenido |
-|---------|-----------|
+| Recurso | Contenido                           |
+| ------- | ----------------------------------- |
 | **LDS** | Listeners para puertos de servicios |
-| **RDS** | Rutas basadas en VirtualServices |
-| **CDS** | Clusters para cada servicio K8s |
-| **EDS** | Pods endpoints por servicio |
-| **SDS** | Certificados mTLS (SPIFFE) |
+| **RDS** | Rutas basadas en VirtualServices    |
+| **CDS** | Clusters para cada servicio K8s     |
+| **EDS** | Pods endpoints por servicio         |
+| **SDS** | Certificados mTLS (SPIFFE)          |
 
 ### 7.3 Ejemplo: Service → xDS
 
@@ -394,7 +399,7 @@ metadata:
   namespace: default
 spec:
   ports:
-  - port: 8080
+    - port: 8080
   selector:
     app: my-api
 ---

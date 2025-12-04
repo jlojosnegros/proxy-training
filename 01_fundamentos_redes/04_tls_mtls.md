@@ -1,15 +1,18 @@
 # TLS y mTLS: Seguridad en la Capa de Transporte
 
 ---
+
 **Módulo**: 1 - Fundamentos de Redes
 **Tema**: TLS y mTLS
 **Tiempo estimado**: 2 horas
 **Prerrequisitos**: [02_tcp_udp.md](02_tcp_udp.md), [03_http_protocols.md](03_http_protocols.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás cómo funciona TLS y el proceso de handshake
 - Comprenderás la diferencia entre TLS y mTLS
 - Sabrás qué son los certificados X.509 y SPIFFE
@@ -23,13 +26,14 @@ Al completar este documento:
 
 TLS (Transport Layer Security) proporciona:
 
-| Propiedad | Descripción |
-|-----------|-------------|
-| **Confidencialidad** | Los datos están cifrados, solo el receptor puede leerlos |
-| **Integridad** | Los datos no pueden ser modificados sin detección |
-| **Autenticación** | El servidor (y opcionalmente el cliente) prueba su identidad |
+| Propiedad            | Descripción                                                  |
+| -------------------- | ------------------------------------------------------------ |
+| **Confidencialidad** | Los datos están cifrados, solo el receptor puede leerlos     |
+| **Integridad**       | Los datos no pueden ser modificados sin detección            |
+| **Autenticación**    | El servidor (y opcionalmente el cliente) prueba su identidad |
 
 **TLS en el Modelo OSI**:
+
 ```
 ┌─────────────────────────────────────┐
 │ Layer 7: Application (HTTP, gRPC)  │
@@ -108,6 +112,7 @@ Cliente                                              Servidor
 ```
 
 **Ventajas de TLS 1.3**:
+
 - 1-RTT para nuevo handshake (vs 2-RTT en TLS 1.2)
 - 0-RTT posible para reconexiones
 - Solo cipher suites seguros
@@ -127,6 +132,7 @@ TLS_AES_256_GCM_SHA384
 ```
 
 **ztunnel** usa solo TLS 1.3 con:
+
 - `TLS13_AES_256_GCM_SHA384`
 - `TLS13_AES_128_GCM_SHA256`
 
@@ -188,6 +194,7 @@ TLS_AES_256_GCM_SHA384
 ```
 
 **Verificación**:
+
 1. Cliente recibe certificado del servidor
 2. Verifica firma con clave pública del Intermediate CA
 3. Verifica firma del Intermediate con clave del Root CA
@@ -240,6 +247,7 @@ Cliente                                              Servidor
 ### 3.3 ¿Por qué mTLS en Service Mesh?
 
 En un service mesh:
+
 - Múltiples servicios se comunican entre sí
 - Necesitamos autenticar **ambas partes** de cada conexión
 - mTLS proporciona:
@@ -265,6 +273,7 @@ En un service mesh:
 **SPIFFE** (Secure Production Identity Framework For Everyone) define un estándar para identidades de workloads.
 
 **SPIFFE ID**: URI que identifica un workload
+
 ```
 spiffe://trust-domain/path
 
@@ -312,6 +321,7 @@ ztunnel/src/identity/
 ```
 
 **Flujo**:
+
 1. Pod se inicia en el nodo
 2. ztunnel solicita SVID para el pod a istiod
 3. ztunnel almacena el certificado
@@ -319,6 +329,7 @@ ztunnel/src/identity/
 5. Cuando llega conexión inbound, ztunnel valida el certificado del peer
 
 **De `ARCHITECTURE.md`**:
+
 > Ztunnel's own identity is never used for mTLS connections between workloads.
 > The certificates will be of the actual user workloads, not Ztunnel's own identity.
 
@@ -332,25 +343,26 @@ Envoy puede terminar TLS:
 
 ```yaml
 listeners:
-- name: https_listener
-  address:
-    socket_address:
-      address: 0.0.0.0
-      port_value: 443
-  filter_chains:
-  - transport_socket:
-      name: envoy.transport_sockets.tls
-      typed_config:
-        "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
-        common_tls_context:
-          tls_certificates:
-          - certificate_chain:
-              filename: /etc/certs/server.crt
-            private_key:
-              filename: /etc/certs/server.key
+  - name: https_listener
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 443
+    filter_chains:
+      - transport_socket:
+          name: envoy.transport_sockets.tls
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+            common_tls_context:
+              tls_certificates:
+                - certificate_chain:
+                    filename: /etc/certs/server.crt
+                  private_key:
+                    filename: /etc/certs/server.key
 ```
 
 **Código**:
+
 ```
 source/extensions/transport_sockets/tls/ssl_socket.cc
 source/extensions/transport_sockets/tls/context_impl.cc
@@ -365,16 +377,16 @@ transport_socket:
   name: envoy.transport_sockets.tls
   typed_config:
     "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
-    require_client_certificate: true  # ← Requiere mTLS
+    require_client_certificate: true # ← Requiere mTLS
     common_tls_context:
       validation_context:
         trusted_ca:
-          filename: /etc/certs/ca.crt  # ← CA para validar cliente
+          filename: /etc/certs/ca.crt # ← CA para validar cliente
       tls_certificates:
-      - certificate_chain:
-          filename: /etc/certs/server.crt
-        private_key:
-          filename: /etc/certs/server.key
+        - certificate_chain:
+            filename: /etc/certs/server.crt
+          private_key:
+            filename: /etc/certs/server.key
 ```
 
 ### 5.3 SNI y Filter Chain Matching
@@ -383,17 +395,18 @@ Envoy puede seleccionar certificados basado en SNI:
 
 ```yaml
 filter_chains:
-- filter_chain_match:
-    server_names: ["api.example.com"]
-  transport_socket:
-    # Certificado para api.example.com
-- filter_chain_match:
-    server_names: ["web.example.com"]
-  transport_socket:
-    # Certificado para web.example.com
+  - filter_chain_match:
+      server_names: ["api.example.com"]
+    transport_socket:
+      # Certificado para api.example.com
+  - filter_chain_match:
+      server_names: ["web.example.com"]
+    transport_socket:
+      # Certificado para web.example.com
 ```
 
 **SNI** (Server Name Indication): El cliente indica el hostname en el ClientHello, permitiendo:
+
 - Un IP/puerto → múltiples certificados
 - Virtual hosting con TLS
 
@@ -411,6 +424,7 @@ Ztunnel's TLS is built on rustls.
 ```
 
 **Providers de crypto soportados**:
+
 - aws-lc (default)
 - ring
 - boring (FIPS)
@@ -493,19 +507,19 @@ openssl x509 -req -days 365 -in server.csr -CA ca.crt -CAkey ca.key \
 
 ### Envoy
 
-| Archivo | Descripción |
-|---------|-------------|
-| `source/extensions/transport_sockets/tls/ssl_socket.cc` | Socket TLS |
-| `source/extensions/transport_sockets/tls/context_impl.cc` | Contexto TLS |
+| Archivo                                                   | Descripción         |
+| --------------------------------------------------------- | ------------------- |
+| `source/extensions/transport_sockets/tls/ssl_socket.cc`   | Socket TLS          |
+| `source/extensions/transport_sockets/tls/context_impl.cc` | Contexto TLS        |
 | `source/extensions/transport_sockets/tls/cert_validator/` | Validación de certs |
 
 ### ztunnel
 
-| Archivo | Descripción |
-|---------|-------------|
-| `src/identity/` | Gestión de identidades SPIFFE |
-| `README.md` | Proveedores TLS soportados |
-| `ARCHITECTURE.md` | Flujo de certificados |
+| Archivo           | Descripción                   |
+| ----------------- | ----------------------------- |
+| `src/identity/`   | Gestión de identidades SPIFFE |
+| `README.md`       | Proveedores TLS soportados    |
+| `ARCHITECTURE.md` | Flujo de certificados         |
 
 ---
 

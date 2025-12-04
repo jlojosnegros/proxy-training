@@ -1,15 +1,18 @@
 # Escribiendo Custom HTTP Filters en Envoy
 
 ---
+
 **Módulo**: 6 - Avanzado (Envoy)
 **Tema**: Desarrollo de HTTP Filters personalizados
 **Tiempo estimado**: 4 horas
 **Prerrequisitos**: Módulo 3 completo
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás la arquitectura de filters de Envoy
 - Conocerás las interfaces que debe implementar un filter
 - Podrás crear un HTTP filter básico
@@ -461,39 +464,39 @@ EXTENSIONS = {
 
 static_resources:
   listeners:
-  - name: listener_0
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: 8080
-    filter_chains:
-    - filters:
-      - name: envoy.filters.network.http_connection_manager
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-          stat_prefix: ingress_http
-          route_config:
-            name: local_route
-            virtual_hosts:
-            - name: backend
-              domains: ["*"]
-              routes:
-              - match:
-                  prefix: "/"
-                route:
-                  cluster: backend
-          http_filters:
-          # Nuestro filter custom!
-          - name: envoy.filters.http.my_header
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.my_header.v3.MyHeader
-              header_name: "X-Custom-Header"
-              header_value: "added-by-my-filter"
-              add_to_request: true
-          # Router siempre al final
-          - name: envoy.filters.http.router
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+    - name: listener_0
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 8080
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: backend
+                      domains: ["*"]
+                      routes:
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: backend
+                http_filters:
+                  # Nuestro filter custom!
+                  - name: envoy.filters.http.my_header
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.my_header.v3.MyHeader
+                      header_name: "X-Custom-Header"
+                      header_value: "added-by-my-filter"
+                      add_to_request: true
+                  # Router siempre al final
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 ```
 
 ---
@@ -729,14 +732,13 @@ scope.histogramFromString("my_filter.latency_ms",
 
 ## 9. Referencias
 
-| Recurso | Descripción |
-|---------|-------------|
-| `source/extensions/filters/http/buffer/` | Ejemplo de filter simple |
-| `source/extensions/filters/http/cors/` | Filter con config más compleja |
-| `source/extensions/filters/http/ext_authz/` | Filter con llamadas externas |
-| [Envoy Filter Development](https://www.envoyproxy.io/docs/envoy/latest/extending/extending.html) | Documentación oficial |
+| Recurso                                                                                          | Descripción                    |
+| ------------------------------------------------------------------------------------------------ | ------------------------------ |
+| `source/extensions/filters/http/buffer/`                                                         | Ejemplo de filter simple       |
+| `source/extensions/filters/http/cors/`                                                           | Filter con config más compleja |
+| `source/extensions/filters/http/ext_authz/`                                                      | Filter con llamadas externas   |
+| [Envoy Filter Development](https://www.envoyproxy.io/docs/envoy/latest/extending/extending.html) | Documentación oficial          |
 
 ---
 
 **Siguiente**: [hot_restart.md](hot_restart.md) - Hot Restart Mechanism
-

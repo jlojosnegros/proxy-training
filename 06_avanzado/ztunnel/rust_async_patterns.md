@@ -1,15 +1,18 @@
 # Patrones Async en Rust para ztunnel
 
 ---
+
 **Módulo**: 6 - Avanzado (ztunnel)
 **Tema**: Patrones de programación async en Rust
 **Tiempo estimado**: 3 horas
 **Prerrequisitos**: Módulo 4 completo, conocimientos básicos de Rust
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás async/await en Rust
 - Conocerás los patrones comunes en ztunnel
 - Comprenderás Tokio runtime
@@ -647,14 +650,13 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
 
 ## 9. Referencias
 
-| Recurso | Descripción |
-|---------|-------------|
-| [Tokio Tutorial](https://tokio.rs/tokio/tutorial) | Tutorial oficial |
-| [Async Book](https://rust-lang.github.io/async-book/) | Libro de async Rust |
-| [Tokio Console](https://github.com/tokio-rs/console) | Debugging tool |
-| ztunnel `src/` | Código fuente para ejemplos reales |
+| Recurso                                               | Descripción                        |
+| ----------------------------------------------------- | ---------------------------------- |
+| [Tokio Tutorial](https://tokio.rs/tokio/tutorial)     | Tutorial oficial                   |
+| [Async Book](https://rust-lang.github.io/async-book/) | Libro de async Rust                |
+| [Tokio Console](https://github.com/tokio-rs/console)  | Debugging tool                     |
+| ztunnel `src/`                                        | Código fuente para ejemplos reales |
 
 ---
 
 **Siguiente**: [certificate_rotation.md](certificate_rotation.md) - Certificate Rotation
-

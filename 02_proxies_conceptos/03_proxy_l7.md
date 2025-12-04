@@ -1,15 +1,18 @@
 # Proxy Layer 7 en Profundidad
 
 ---
+
 **Módulo**: 2 - Proxies - Conceptos Fundamentales
 **Tema**: Proxy L7
 **Tiempo estimado**: 2 horas
 **Prerrequisitos**: [02_proxy_l4.md](02_proxy_l4.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás cómo opera un proxy L7
 - Comprenderás el modelo de filter chain
 - Sabrás qué funcionalidades habilita L7
@@ -68,17 +71,17 @@ Un proxy L7 **entiende el protocolo de aplicación**:
 
 ### 1.2 Capacidades de un Proxy L7
 
-| Capacidad | Descripción | Ejemplo |
-|-----------|-------------|---------|
-| **Content-based routing** | Ruta según URL, headers | `/api/v1` → cluster-v1 |
-| **Header manipulation** | Add/remove/modify headers | Add `X-Request-ID` |
-| **Authentication** | Validar tokens | JWT, OAuth2 |
-| **Authorization** | Permitir/denegar por path/método | RBAC |
-| **Rate limiting** | Limitar por user/path | 100 req/min por API key |
-| **Request/response transformation** | Modificar contenido | gRPC-JSON transcoding |
-| **Caching** | Cachear responses | Cache GET requests |
-| **Compression** | Comprimir responses | gzip |
-| **Request-level metrics** | Métricas por endpoint | Latencia de `/api/users` |
+| Capacidad                           | Descripción                      | Ejemplo                  |
+| ----------------------------------- | -------------------------------- | ------------------------ |
+| **Content-based routing**           | Ruta según URL, headers          | `/api/v1` → cluster-v1   |
+| **Header manipulation**             | Add/remove/modify headers        | Add `X-Request-ID`       |
+| **Authentication**                  | Validar tokens                   | JWT, OAuth2              |
+| **Authorization**                   | Permitir/denegar por path/método | RBAC                     |
+| **Rate limiting**                   | Limitar por user/path            | 100 req/min por API key  |
+| **Request/response transformation** | Modificar contenido              | gRPC-JSON transcoding    |
+| **Caching**                         | Cachear responses                | Cache GET requests       |
+| **Compression**                     | Comprimir responses              | gzip                     |
+| **Request-level metrics**           | Métricas por endpoint            | Latencia de `/api/users` |
 
 ---
 
@@ -170,11 +173,13 @@ class StreamEncoderFilter {
 ```
 
 **Return values**:
+
 - `Continue`: Pasar al siguiente filtro
 - `StopIteration`: Pausar procesamiento (ej: esperando respuesta async)
 - `StopIterationAndBuffer`: Pausar y bufferar datos
 
 **Código**:
+
 ```
 source/common/http/filter_manager.cc
 envoy/http/filter.h
@@ -191,40 +196,40 @@ Envoy puede rutear basado en múltiples criterios:
 ```yaml
 route_config:
   virtual_hosts:
-  - name: api
-    domains: ["api.example.com"]  # Match por Host header
-    routes:
-    # Match por prefix
-    - match:
-        prefix: "/api/v1/"
-      route:
-        cluster: api-v1
+    - name: api
+      domains: ["api.example.com"] # Match por Host header
+      routes:
+        # Match por prefix
+        - match:
+            prefix: "/api/v1/"
+          route:
+            cluster: api-v1
 
-    # Match por regex
-    - match:
-        safe_regex:
-          google_re2: {}
-          regex: "/users/[0-9]+"
-      route:
-        cluster: users-service
+        # Match por regex
+        - match:
+            safe_regex:
+              google_re2: {}
+              regex: "/users/[0-9]+"
+          route:
+            cluster: users-service
 
-    # Match por headers
-    - match:
-        prefix: "/"
-        headers:
-        - name: "x-api-version"
-          exact_match: "beta"
-      route:
-        cluster: api-beta
+        # Match por headers
+        - match:
+            prefix: "/"
+            headers:
+              - name: "x-api-version"
+                exact_match: "beta"
+          route:
+            cluster: api-beta
 
-    # Match por query params
-    - match:
-        prefix: "/"
-        query_parameters:
-        - name: "debug"
-          present_match: true
-      route:
-        cluster: debug-cluster
+        # Match por query params
+        - match:
+            prefix: "/"
+            query_parameters:
+              - name: "debug"
+                present_match: true
+          route:
+            cluster: debug-cluster
 ```
 
 ### 3.2 Router Filter
@@ -236,6 +241,7 @@ source/extensions/filters/http/router/router.cc
 ```
 
 Responsabilidades:
+
 1. Match de ruta según configuración
 2. Seleccionar cluster destino
 3. Obtener connection del pool
@@ -251,25 +257,26 @@ Responsabilidades:
 
 ```yaml
 http_filters:
-- name: envoy.filters.http.jwt_authn
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
-    providers:
-      my_provider:
-        issuer: "https://auth.example.com"
-        audiences: ["api.example.com"]
-        remote_jwks:
-          http_uri:
-            uri: "https://auth.example.com/.well-known/jwks.json"
-            cluster: auth_cluster
-    rules:
-    - match:
-        prefix: "/api/"
-      requires:
-        provider_name: my_provider
+  - name: envoy.filters.http.jwt_authn
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
+      providers:
+        my_provider:
+          issuer: "https://auth.example.com"
+          audiences: ["api.example.com"]
+          remote_jwks:
+            http_uri:
+              uri: "https://auth.example.com/.well-known/jwks.json"
+              cluster: auth_cluster
+      rules:
+        - match:
+            prefix: "/api/"
+          requires:
+            provider_name: my_provider
 ```
 
 **Código**:
+
 ```
 source/extensions/filters/http/jwt_authn/
 ```
@@ -278,22 +285,23 @@ source/extensions/filters/http/jwt_authn/
 
 ```yaml
 http_filters:
-- name: envoy.filters.http.local_ratelimit
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
-    stat_prefix: http_local_rate_limiter
-    token_bucket:
-      max_tokens: 100
-      tokens_per_fill: 10
-      fill_interval: 1s
-    filter_enabled:
-      runtime_key: local_rate_limit_enabled
-      default_value:
-        numerator: 100
-        denominator: HUNDRED
+  - name: envoy.filters.http.local_ratelimit
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+      stat_prefix: http_local_rate_limiter
+      token_bucket:
+        max_tokens: 100
+        tokens_per_fill: 10
+        fill_interval: 1s
+      filter_enabled:
+        runtime_key: local_rate_limit_enabled
+        default_value:
+          numerator: 100
+          denominator: HUNDRED
 ```
 
 **Código**:
+
 ```
 source/extensions/filters/http/local_ratelimit/
 ```
@@ -302,29 +310,30 @@ source/extensions/filters/http/local_ratelimit/
 
 ```yaml
 http_filters:
-- name: envoy.filters.http.rbac
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.rbac.v3.RBAC
-    rules:
-      action: ALLOW
-      policies:
-        admin-access:
-          principals:
-          - header:
-              name: "x-user-role"
-              exact_match: "admin"
-          permissions:
-          - any: true
-        user-access:
-          principals:
-          - any: true
-          permissions:
-          - url_path:
-              path:
-                prefix: "/api/public/"
+  - name: envoy.filters.http.rbac
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.rbac.v3.RBAC
+      rules:
+        action: ALLOW
+        policies:
+          admin-access:
+            principals:
+              - header:
+                  name: "x-user-role"
+                  exact_match: "admin"
+            permissions:
+              - any: true
+          user-access:
+            principals:
+              - any: true
+            permissions:
+              - url_path:
+                  path:
+                    prefix: "/api/public/"
 ```
 
 **Código**:
+
 ```
 source/extensions/filters/http/rbac/
 ```
@@ -351,18 +360,18 @@ vhost.api.vcluster.orders.upstream_rq_total # Requests a /orders
 
 ```yaml
 access_log:
-- name: envoy.access_loggers.file
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog
-    path: "/var/log/envoy/access.log"
-    log_format:
-      text_format: |
-        [%START_TIME%] "%REQ(:METHOD)% %REQ(:PATH)% %PROTOCOL%"
-        %RESPONSE_CODE% %RESPONSE_FLAGS%
-        %BYTES_RECEIVED% %BYTES_SENT%
-        %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%
-        "%REQ(X-FORWARDED-FOR)%" "%REQ(USER-AGENT)%"
-        "%REQ(X-REQUEST-ID)%"
+  - name: envoy.access_loggers.file
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog
+      path: "/var/log/envoy/access.log"
+      log_format:
+        text_format: |
+          [%START_TIME%] "%REQ(:METHOD)% %REQ(:PATH)% %PROTOCOL%"
+          %RESPONSE_CODE% %RESPONSE_FLAGS%
+          %BYTES_RECEIVED% %BYTES_SENT%
+          %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%
+          "%REQ(X-FORWARDED-FOR)%" "%REQ(USER-AGENT)%"
+          "%REQ(X-REQUEST-ID)%"
 ```
 
 ### 5.3 Distributed Tracing
@@ -378,6 +387,7 @@ tracing:
 ```
 
 L7 puede:
+
 - Propagar trace headers (`x-b3-traceid`, `x-request-id`)
 - Crear spans con información de HTTP (path, status)
 - Inyectar headers de trace si no existen
@@ -430,6 +440,7 @@ L4 solo:
 ### Diseñar Configuración para Caso de Uso
 
 **Requisitos**:
+
 1. Rutear `/api/v1/*` a cluster `api-v1`
 2. Rutear `/api/v2/*` a cluster `api-v2`
 3. Requerir JWT para todo `/api/*`
@@ -441,48 +452,48 @@ L4 solo:
 
 ```yaml
 http_filters:
-- name: envoy.filters.http.jwt_authn
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
-    providers:
-      main:
-        issuer: "https://auth.example.com"
-        remote_jwks:
-          http_uri:
-            uri: "https://auth.example.com/.well-known/jwks.json"
-            cluster: auth
-    rules:
-    - match:
-        prefix: "/api/"
-      requires:
-        provider_name: main
+  - name: envoy.filters.http.jwt_authn
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
+      providers:
+        main:
+          issuer: "https://auth.example.com"
+          remote_jwks:
+            http_uri:
+              uri: "https://auth.example.com/.well-known/jwks.json"
+              cluster: auth
+      rules:
+        - match:
+            prefix: "/api/"
+          requires:
+            provider_name: main
 
-- name: envoy.filters.http.local_ratelimit
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
-    stat_prefix: rate_limit
-    token_bucket:
-      max_tokens: 100
-      tokens_per_fill: 100
-      fill_interval: 60s
+  - name: envoy.filters.http.local_ratelimit
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+      stat_prefix: rate_limit
+      token_bucket:
+        max_tokens: 100
+        tokens_per_fill: 100
+        fill_interval: 60s
 
-- name: envoy.filters.http.router
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  - name: envoy.filters.http.router
+    typed_config:
+      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
 route_config:
   virtual_hosts:
-  - name: api
-    domains: ["*"]
-    routes:
-    - match:
-        prefix: "/api/v1/"
-      route:
-        cluster: api-v1
-    - match:
-        prefix: "/api/v2/"
-      route:
-        cluster: api-v2
+    - name: api
+      domains: ["*"]
+      routes:
+        - match:
+            prefix: "/api/v1/"
+          route:
+            cluster: api-v1
+        - match:
+            prefix: "/api/v2/"
+          route:
+            cluster: api-v2
 ```
 
 </details>
@@ -501,14 +512,14 @@ route_config:
 
 ## 9. Referencias en el Código
 
-| Archivo | Descripción |
-|---------|-------------|
-| `source/common/http/conn_manager_impl.h` | HTTP Connection Manager |
-| `source/common/http/filter_manager.cc` | Filter chain execution |
-| `source/extensions/filters/http/router/router.cc` | Router filter |
-| `source/extensions/filters/http/jwt_authn/` | JWT authentication |
-| `source/extensions/filters/http/rbac/` | RBAC authorization |
-| `envoy/http/filter.h` | Filter interfaces |
+| Archivo                                           | Descripción             |
+| ------------------------------------------------- | ----------------------- |
+| `source/common/http/conn_manager_impl.h`          | HTTP Connection Manager |
+| `source/common/http/filter_manager.cc`            | Filter chain execution  |
+| `source/extensions/filters/http/router/router.cc` | Router filter           |
+| `source/extensions/filters/http/jwt_authn/`       | JWT authentication      |
+| `source/extensions/filters/http/rbac/`            | RBAC authorization      |
+| `envoy/http/filter.h`                             | Filter interfaces       |
 
 ---
 

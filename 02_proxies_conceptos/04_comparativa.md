@@ -1,15 +1,18 @@
 # L4 vs L7: Cuándo Usar Cada Uno
 
 ---
+
 **Módulo**: 2 - Proxies - Conceptos Fundamentales
 **Tema**: Comparativa L4 vs L7
 **Tiempo estimado**: 1 hora
 **Prerrequisitos**: [02_proxy_l4.md](02_proxy_l4.md), [03_proxy_l7.md](03_proxy_l7.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Podrás decidir cuándo usar L4 vs L7
 - Entenderás el modelo híbrido de Istio ambient
 - Tendrás un framework de decisión claro
@@ -18,22 +21,22 @@ Al completar este documento:
 
 ## 1. Tabla Comparativa Completa
 
-| Aspecto | Proxy L4 | Proxy L7 |
-|---------|----------|----------|
-| **Capa OSI** | Transport (4) | Application (7) |
-| **Qué ve** | IP, puertos, TCP flags | + HTTP headers, body, gRPC |
-| **Routing basado en** | IP:puerto destino | URL, headers, query params |
-| **Ejemplos** | ztunnel, TCP proxy | Envoy HCM, Nginx |
-| **Latencia adicional** | ~0.1ms | ~1-5ms |
-| **Memoria por conexión** | ~1KB | ~10-100KB |
-| **CPU por request** | Mínimo | Parsing + filters |
-| **mTLS** | ✓ | ✓ |
-| **L4 Auth (IP, identity)** | ✓ | ✓ |
-| **L7 Auth (JWT, OAuth)** | ✗ | ✓ |
-| **Rate limit por path** | ✗ | ✓ |
-| **Header manipulation** | ✗ | ✓ |
-| **Request-level metrics** | ✗ | ✓ |
-| **Protocolos custom** | ✓ (bytes opacos) | Solo si hay codec |
+| Aspecto                    | Proxy L4               | Proxy L7                   |
+| -------------------------- | ---------------------- | -------------------------- |
+| **Capa OSI**               | Transport (4)          | Application (7)            |
+| **Qué ve**                 | IP, puertos, TCP flags | + HTTP headers, body, gRPC |
+| **Routing basado en**      | IP:puerto destino      | URL, headers, query params |
+| **Ejemplos**               | ztunnel, TCP proxy     | Envoy HCM, Nginx           |
+| **Latencia adicional**     | ~0.1ms                 | ~1-5ms                     |
+| **Memoria por conexión**   | ~1KB                   | ~10-100KB                  |
+| **CPU por request**        | Mínimo                 | Parsing + filters          |
+| **mTLS**                   | ✓                      | ✓                          |
+| **L4 Auth (IP, identity)** | ✓                      | ✓                          |
+| **L7 Auth (JWT, OAuth)**   | ✗                      | ✓                          |
+| **Rate limit por path**    | ✗                      | ✓                          |
+| **Header manipulation**    | ✗                      | ✓                          |
+| **Request-level metrics**  | ✗                      | ✓                          |
+| **Protocolos custom**      | ✓ (bytes opacos)       | Solo si hay codec          |
 
 ---
 
@@ -82,6 +85,7 @@ Al completar este documento:
 ### 3.1 Caso: API Gateway
 
 **Requisitos**:
+
 - Routing por path (`/users`, `/orders`)
 - JWT validation
 - Rate limiting por API key
@@ -93,15 +97,16 @@ Al completar este documento:
 # Solo L7 puede hacer esto
 route_config:
   routes:
-  - match: { prefix: "/users" }
-    route: { cluster: users-service }
-  - match: { prefix: "/orders" }
-    route: { cluster: orders-service }
+    - match: { prefix: "/users" }
+      route: { cluster: users-service }
+    - match: { prefix: "/orders" }
+      route: { cluster: orders-service }
 ```
 
 ### 3.2 Caso: mTLS Transparente en Kubernetes
 
 **Requisitos**:
+
 - Cifrado entre todos los pods
 - Zero-trust networking
 - Sin modificar aplicaciones
@@ -120,6 +125,7 @@ Razones:
 ### 3.3 Caso: Service Mesh con Políticas de Seguridad
 
 **Requisitos**:
+
 - mTLS entre servicios
 - Rate limiting por endpoint
 - JWT validation
@@ -135,6 +141,7 @@ Waypoint (Envoy): L7 policies solo donde se necesitan
 ### 3.4 Caso: Proxy para Base de Datos
 
 **Requisitos**:
+
 - Proxy para MySQL
 - Load balancing entre réplicas
 - Connection pooling
@@ -199,14 +206,14 @@ Con Waypoint:
 
 ### 4.2 Cuándo Usar Waypoint
 
-| Servicio Necesita | Sin Waypoint | Con Waypoint |
-|-------------------|--------------|--------------|
-| Solo mTLS | ✓ | Overkill |
-| L4 auth (identity-based) | ✓ | Overkill |
-| L7 auth (path-based) | ✗ | ✓ |
-| JWT validation | ✗ | ✓ |
-| Rate limiting por path | ✗ | ✓ |
-| Canary por header | ✗ | ✓ |
+| Servicio Necesita        | Sin Waypoint | Con Waypoint |
+| ------------------------ | ------------ | ------------ |
+| Solo mTLS                | ✓            | Overkill     |
+| L4 auth (identity-based) | ✓            | Overkill     |
+| L7 auth (path-based)     | ✗            | ✓            |
+| JWT validation           | ✗            | ✓            |
+| Rate limiting por path   | ✗            | ✓            |
+| Canary por header        | ✗            | ✓            |
 
 ---
 

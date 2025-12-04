@@ -1,15 +1,18 @@
 # Rotación de Certificados SPIFFE en ztunnel
 
 ---
+
 **Módulo**: 6 - Avanzado (ztunnel)
 **Tema**: Gestión y rotación de certificados
 **Tiempo estimado**: 2 horas
 **Prerrequisitos**: Módulo 4 completo
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás cómo ztunnel gestiona certificados
 - Conocerás el flujo de rotación de certificados
 - Comprenderás la integración con istiod CA
@@ -485,18 +488,18 @@ spec:
   meshConfig:
     # Lifetime de certificados (default: 24h)
     certificates:
-    - secretName: dns.example1-service-account
-      dnsNames: [example1.default.svc, example1.default]
+      - secretName: dns.example1-service-account
+        dnsNames: [example1.default.svc, example1.default]
 
     # Trust domain
     trustDomain: cluster.local
 
     # Configuración de CA
     caCertificates:
-    - pem: |
-        -----BEGIN CERTIFICATE-----
-        ...
-        -----END CERTIFICATE-----
+      - pem: |
+          -----BEGIN CERTIFICATE-----
+          ...
+          -----END CERTIFICATE-----
 ```
 
 ### 6.2 Variables de Entorno
@@ -525,14 +528,13 @@ CA_ADDR=istiod.istio-system.svc:15012
 
 ## 8. Referencias
 
-| Recurso | Descripción |
-|---------|-------------|
-| [SPIFFE Spec](https://spiffe.io/docs/latest/spiffe-about/overview/) | Especificación SPIFFE |
-| [Istio Security](https://istio.io/latest/docs/concepts/security/) | Seguridad en Istio |
-| ztunnel `src/identity/` | Implementación |
+| Recurso                                                                                   | Descripción              |
+| ----------------------------------------------------------------------------------------- | ------------------------ |
+| [SPIFFE Spec](https://spiffe.io/docs/latest/spiffe-about/overview/)                       | Especificación SPIFFE    |
+| [Istio Security](https://istio.io/latest/docs/concepts/security/)                         | Seguridad en Istio       |
+| ztunnel `src/identity/`                                                                   | Implementación           |
 | [SDS Protocol](https://www.envoyproxy.io/docs/envoy/latest/configuration/security/secret) | Secret Discovery Service |
 
 ---
 
 **Siguiente**: [../../ejercicios/envoy/01_compilar_ejecutar.md](../../ejercicios/envoy/01_compilar_ejecutar.md) - Ejercicio: Compilar y Ejecutar Envoy
-

@@ -1,15 +1,18 @@
 # HBONE Protocol Deep Dive
 
 ---
+
 **Módulo**: 4 - Arquitectura de ztunnel
 **Tema**: HTTP-Based Overlay Network Encapsulation
 **Tiempo estimado**: 3 horas
 **Prerrequisitos**: [02_threading_tokio.md](02_threading_tokio.md)
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás qué es HBONE y por qué existe
 - Conocerás la estructura del protocolo
 - Comprenderás el flujo de encapsulación
@@ -36,12 +39,12 @@ Al completar este documento:
 
 ### 1.2 Componentes
 
-| Componente | Descripción |
-|------------|-------------|
-| **HTTP/2 CONNECT** | Método para crear túnel TCP |
-| **mTLS** | Autenticación mutua con certificados |
-| **SPIFFE** | Identidades de workload |
-| **Port 15008** | Puerto estándar para HBONE |
+| Componente         | Descripción                          |
+| ------------------ | ------------------------------------ |
+| **HTTP/2 CONNECT** | Método para crear túnel TCP          |
+| **mTLS**           | Autenticación mutua con certificados |
+| **SPIFFE**         | Identidades de workload              |
+| **Port 15008**     | Puerto estándar para HBONE           |
 
 ---
 
@@ -274,12 +277,12 @@ Solo ve bytes que copia al túnel
 
 ### 5.1 Alternativas Consideradas
 
-| Opción | Problema |
-|--------|----------|
-| **Raw TCP** | No hay estándar para multiplexing |
-| **Custom protocol** | Más código, menos interop |
-| **gRPC bidirectional** | Overhead de protobuf |
-| **HTTP/2 CONNECT** | Estándar, multiplexing, herramientas existentes |
+| Opción                 | Problema                                        |
+| ---------------------- | ----------------------------------------------- |
+| **Raw TCP**            | No hay estándar para multiplexing               |
+| **Custom protocol**    | Más código, menos interop                       |
+| **gRPC bidirectional** | Overhead de protobuf                            |
+| **HTTP/2 CONNECT**     | Estándar, multiplexing, herramientas existentes |
 
 ### 5.2 Ventajas de HTTP/2 CONNECT
 

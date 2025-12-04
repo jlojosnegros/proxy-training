@@ -1,9 +1,11 @@
 # Ejercicio: Compilar y Ejecutar Envoy
 
 ---
+
 **Tipo**: Ejercicio práctico
 **Tiempo estimado**: 2-3 horas
 **Prerrequisitos**: Módulo 3 completo
+
 ---
 
 ## Objetivo
@@ -122,35 +124,35 @@ admin:
 
 static_resources:
   listeners:
-  - name: listener_0
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: 8080
-    filter_chains:
-    - filters:
-      - name: envoy.filters.network.http_connection_manager
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-          stat_prefix: ingress_http
-          codec_type: AUTO
-          route_config:
-            name: local_route
-            virtual_hosts:
-            - name: backend
-              domains:
-              - "*"
-              routes:
-              - match:
-                  prefix: "/"
-                direct_response:
-                  status: 200
-                  body:
-                    inline_string: "Hello from Envoy!\n"
-          http_filters:
-          - name: envoy.filters.http.router
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+    - name: listener_0
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 8080
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                codec_type: AUTO
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: backend
+                      domains:
+                        - "*"
+                      routes:
+                        - match:
+                            prefix: "/"
+                          direct_response:
+                            status: 200
+                            body:
+                              inline_string: "Hello from Envoy!\n"
+                http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 ```
 
 ### 4.2 Validar Configuración
@@ -205,16 +207,16 @@ curl http://localhost:15000/clusters
 
 ### 6.1 Endpoints Útiles
 
-| Endpoint | Descripción |
-|----------|-------------|
-| `/server_info` | Información del servidor |
-| `/stats` | Todas las estadísticas |
+| Endpoint            | Descripción                 |
+| ------------------- | --------------------------- |
+| `/server_info`      | Información del servidor    |
+| `/stats`            | Todas las estadísticas      |
 | `/stats/prometheus` | Stats en formato Prometheus |
-| `/clusters` | Estado de clusters |
-| `/listeners` | Listeners configurados |
-| `/config_dump` | Configuración completa |
-| `/logging` | Ver/cambiar niveles de log |
-| `/ready` | Readiness check |
+| `/clusters`         | Estado de clusters          |
+| `/listeners`        | Listeners configurados      |
+| `/config_dump`      | Configuración completa      |
+| `/logging`          | Ver/cambiar niveles de log  |
+| `/ready`            | Readiness check             |
 
 ### 6.2 Cambiar Log Level
 
@@ -246,47 +248,47 @@ admin:
 
 static_resources:
   listeners:
-  - name: listener_0
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: 8080
-    filter_chains:
-    - filters:
-      - name: envoy.filters.network.http_connection_manager
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-          stat_prefix: ingress_http
-          codec_type: AUTO
-          route_config:
-            name: local_route
-            virtual_hosts:
-            - name: backend
-              domains:
-              - "*"
-              routes:
-              - match:
-                  prefix: "/"
-                route:
-                  cluster: httpbin
-          http_filters:
-          - name: envoy.filters.http.router
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+    - name: listener_0
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 8080
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                codec_type: AUTO
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: backend
+                      domains:
+                        - "*"
+                      routes:
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: httpbin
+                http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
-  - name: httpbin
-    type: STRICT_DNS
-    lb_policy: ROUND_ROBIN
-    load_assignment:
-      cluster_name: httpbin
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              socket_address:
-                address: httpbin.org
-                port_value: 80
+    - name: httpbin
+      type: STRICT_DNS
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: httpbin
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: httpbin.org
+                      port_value: 80
 ```
 
 ### 7.2 Probar
@@ -350,9 +352,9 @@ sudo ss -tlnp | grep 8080
 ## 10. Siguientes Pasos
 
 Una vez completado este ejercicio, continúa con:
+
 - [02_trazar_request.md](02_trazar_request.md) - Trazar un Request
 
 ---
 
 **Tiempo total estimado**: 2-3 horas (incluyendo tiempo de build)
-

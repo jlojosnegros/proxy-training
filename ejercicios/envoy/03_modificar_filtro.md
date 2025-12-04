@@ -1,9 +1,11 @@
 # Ejercicio: Modificar un Filtro HTTP
 
 ---
+
 **Tipo**: Ejercicio práctico
 **Tiempo estimado**: 2-3 horas
 **Prerrequisitos**: Ejercicios 01 y 02 completados, Módulo 6 (custom filters)
+
 ---
 
 ## Objetivo
@@ -41,6 +43,7 @@ cat source/extensions/filters/http/buffer/buffer_filter.cc
 ```
 
 **Puntos clave a observar:**
+
 - Herencia de `StreamDecoderFilter`
 - Métodos `decodeHeaders`, `decodeData`
 - Uso de `FilterHeadersStatus` y `FilterDataStatus`
@@ -101,38 +104,38 @@ admin:
 
 static_resources:
   listeners:
-  - name: listener_0
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: 8080
-    filter_chains:
-    - filters:
-      - name: envoy.filters.network.http_connection_manager
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-          stat_prefix: ingress_http
-          route_config:
-            name: local_route
-            virtual_hosts:
-            - name: backend
-              domains: ["*"]
-              routes:
-              - match:
-                  prefix: "/"
-                direct_response:
-                  status: 200
-                  body:
-                    inline_string: "OK"
-          http_filters:
-          # Nuestro filtro modificado
-          - name: envoy.filters.http.buffer
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.buffer.v3.Buffer
-              max_request_bytes: 1048576
-          - name: envoy.filters.http.router
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+    - name: listener_0
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 8080
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: backend
+                      domains: ["*"]
+                      routes:
+                        - match:
+                            prefix: "/"
+                          direct_response:
+                            status: 200
+                            body:
+                              inline_string: "OK"
+                http_filters:
+                  # Nuestro filtro modificado
+                  - name: envoy.filters.http.buffer
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.buffer.v3.Buffer
+                      max_request_bytes: 1048576
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 ```
 
 ```bash
@@ -344,6 +347,7 @@ Después de este ejercicio, deberías entender:
 ## 9. Siguiente Paso
 
 Para profundizar más, considera:
+
 - Crear un filtro completamente nuevo (ver Módulo 6)
 - Explorar filtros más complejos como `router` o `ext_authz`
 - Contribuir una mejora al proyecto upstream
@@ -351,4 +355,3 @@ Para profundizar más, considera:
 ---
 
 **Siguiente ejercicio**: [../ztunnel/01_build_run.md](../ztunnel/01_build_run.md) - Compilar y Ejecutar ztunnel
-

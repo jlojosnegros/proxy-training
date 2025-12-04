@@ -1,15 +1,18 @@
 # ¿Qué es un Proxy de Red?
 
 ---
+
 **Módulo**: 2 - Proxies - Conceptos Fundamentales
 **Tema**: Introducción a Proxies
 **Tiempo estimado**: 2 horas
 **Prerrequisitos**: Módulo 1 completo
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás qué es un proxy y por qué existen
 - Diferenciarás entre forward y reverse proxy
 - Comprenderás los casos de uso principales
@@ -47,14 +50,14 @@ Con proxy:
 
 ### 1.2 ¿Por Qué Usar un Proxy?
 
-| Objetivo | Descripción | Ejemplo |
-|----------|-------------|---------|
-| **Seguridad** | Cifrado, autenticación, autorización | mTLS, JWT validation |
-| **Observabilidad** | Métricas, logs, traces | Request latency, error rates |
-| **Resiliencia** | Retries, circuit breakers, timeouts | Failover automático |
-| **Control de tráfico** | Rate limiting, load balancing | Proteger backends |
-| **Transformación** | Modificar headers, body, protocol | gRPC-JSON transcoding |
-| **Caché** | Almacenar responses frecuentes | Reducir carga upstream |
+| Objetivo               | Descripción                          | Ejemplo                      |
+| ---------------------- | ------------------------------------ | ---------------------------- |
+| **Seguridad**          | Cifrado, autenticación, autorización | mTLS, JWT validation         |
+| **Observabilidad**     | Métricas, logs, traces               | Request latency, error rates |
+| **Resiliencia**        | Retries, circuit breakers, timeouts  | Failover automático          |
+| **Control de tráfico** | Rate limiting, load balancing        | Proteger backends            |
+| **Transformación**     | Modificar headers, body, protocol    | gRPC-JSON transcoding        |
+| **Caché**              | Almacenar responses frecuentes       | Reducir carga upstream       |
 
 ---
 
@@ -153,6 +156,7 @@ El tráfico se redirige al proxy sin que el cliente lo sepa o configure:
 ```
 
 **ztunnel usa transparent proxying**:
+
 ```
 ARCHITECTURE.md:
 | 15001 | Pod outbound traffic capture  | Y |
@@ -183,10 +187,12 @@ Cada pod tiene su propio proxy sidecar:
 ```
 
 **Ventajas**:
+
 - Aislamiento por workload
 - L7 completo por pod
 
 **Desventajas**:
+
 - Un Envoy por pod = alto overhead
 - Mucha memoria/CPU en clusters grandes
 
@@ -213,10 +219,12 @@ Un proxy por nodo para todos los pods:
 ```
 
 **Ventajas**:
+
 - Mucho menor overhead (1 ztunnel por nodo vs N sidecars)
 - L4 eficiente para todos
 
 **Desventajas**:
+
 - Solo L4 (necesita waypoint para L7)
 
 ---
@@ -245,6 +253,7 @@ Distribuir tráfico entre múltiples backends:
 ```
 
 **Algoritmos**:
+
 - **Round Robin**: Rotación circular
 - **Least Connections**: Al backend con menos conexiones activas
 - **Random**: Selección aleatoria
@@ -252,6 +261,7 @@ Distribuir tráfico entre múltiples backends:
 - **Weighted**: Por pesos asignados
 
 **En Envoy**:
+
 ```
 source/common/upstream/load_balancer_impl.cc
 ```
@@ -269,10 +279,12 @@ Tráfico solo va a 1 y 3
 ```
 
 **Tipos**:
+
 - **Active**: El proxy envía requests de prueba
 - **Passive**: Detecta fallos en tráfico real (outlier detection)
 
 **En Envoy**:
+
 ```
 source/common/upstream/health_checker_impl.cc
 ```
@@ -308,13 +320,13 @@ Manejo de fallos transitorios:
 # Configuración Envoy
 route_config:
   virtual_hosts:
-  - routes:
-    - route:
-        timeout: 30s          # Timeout total
-        retry_policy:
-          retry_on: "5xx,reset"
-          num_retries: 3
-          per_try_timeout: 10s
+    - routes:
+        - route:
+            timeout: 30s # Timeout total
+            retry_policy:
+              retry_on: "5xx,reset"
+              num_retries: 3
+              per_try_timeout: 10s
 ```
 
 ### 4.5 Observabilidad
@@ -376,7 +388,9 @@ route_config:
 ## 6. Ejercicio de Reflexión
 
 ### Pregunta 1
+
 Una empresa necesita:
+
 - Load balancing entre 10 backends
 - Health checks
 - Métricas de latencia
@@ -388,6 +402,7 @@ Una empresa necesita:
 <summary>Respuesta</summary>
 
 Un **reverse proxy** porque:
+
 - Transparente para las aplicaciones (no necesitan código)
 - Centraliza load balancing y health checks
 - Puede exportar métricas sin cambios en apps
@@ -396,12 +411,14 @@ Un **reverse proxy** porque:
 </details>
 
 ### Pregunta 2
+
 Un cluster Kubernetes tiene 500 pods y necesita mTLS entre todos. ¿Qué modelo es más eficiente?
 
 <details>
 <summary>Respuesta</summary>
 
 **Node proxy (ztunnel)** porque:
+
 - 500 sidecars = alto overhead de memoria
 - Si hay 50 nodos, solo 50 ztunnels
 - Para solo mTLS, L4 es suficiente

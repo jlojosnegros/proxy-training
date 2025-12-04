@@ -1,15 +1,18 @@
 # Visión General de Envoy
 
 ---
+
 **Módulo**: 3 - Arquitectura de Envoy
 **Tema**: Visión General
 **Tiempo estimado**: 2 horas
 **Prerrequisitos**: Módulos 1 y 2 completos
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Entenderás qué es Envoy y su posición en el ecosistema
 - Conocerás los componentes principales
 - Comprenderás el modelo data plane vs control plane
@@ -111,14 +114,14 @@ Envoy es un **proxy L4/L7 de alto rendimiento** escrito en C++20, diseñado para
 
 ### 2.2 Componentes Principales
 
-| Componente | Descripción | Código |
-|------------|-------------|--------|
-| **Listener** | Acepta conexiones en un puerto | `source/common/listener_manager/` |
-| **Filter Chain** | Procesa conexiones/requests | `source/common/http/filter_manager.cc` |
-| **Cluster** | Grupo de endpoints upstream | `source/common/upstream/cluster_manager_impl.h` |
-| **Endpoint** | Instancia individual de backend | Parte de cluster config |
-| **Router** | Selecciona cluster basado en request | `source/extensions/filters/http/router/` |
-| **Load Balancer** | Selecciona endpoint en cluster | `source/common/upstream/load_balancer_impl.cc` |
+| Componente        | Descripción                          | Código                                          |
+| ----------------- | ------------------------------------ | ----------------------------------------------- |
+| **Listener**      | Acepta conexiones en un puerto       | `source/common/listener_manager/`               |
+| **Filter Chain**  | Procesa conexiones/requests          | `source/common/http/filter_manager.cc`          |
+| **Cluster**       | Grupo de endpoints upstream          | `source/common/upstream/cluster_manager_impl.h` |
+| **Endpoint**      | Instancia individual de backend      | Parte de cluster config                         |
+| **Router**        | Selecciona cluster basado en request | `source/extensions/filters/http/router/`        |
+| **Load Balancer** | Selecciona endpoint en cluster       | `source/common/upstream/load_balancer_impl.cc`  |
 
 ---
 
@@ -197,50 +200,50 @@ admin:
 
 static_resources:
   listeners:
-  - name: http_listener
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: 10000
-    filter_chains:
-    - filters:
-      - name: envoy.filters.network.http_connection_manager
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-          stat_prefix: ingress_http
-          route_config:
-            name: local_route
-            virtual_hosts:
-            - name: backend
-              domains: ["*"]
-              routes:
-              - match:
-                  prefix: "/"
-                route:
-                  cluster: backend_cluster
-          http_filters:
-          - name: envoy.filters.http.router
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+    - name: http_listener
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 10000
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: backend
+                      domains: ["*"]
+                      routes:
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: backend_cluster
+                http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
-  - name: backend_cluster
-    type: STATIC
-    lb_policy: ROUND_ROBIN
-    load_assignment:
-      cluster_name: backend_cluster
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              socket_address:
-                address: 10.0.0.1
-                port_value: 8080
-        - endpoint:
-            address:
-              socket_address:
-                address: 10.0.0.2
-                port_value: 8080
+    - name: backend_cluster
+      type: STATIC
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: backend_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 10.0.0.1
+                      port_value: 8080
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 10.0.0.2
+                      port_value: 8080
 ```
 
 ### 4.2 Configuración Dinámica (xDS)
@@ -254,8 +257,8 @@ dynamic_resources:
       api_type: GRPC
       transport_api_version: V3
       grpc_services:
-      - envoy_grpc:
-          cluster_name: xds_cluster
+        - envoy_grpc:
+            cluster_name: xds_cluster
 
   cds_config:
     resource_api_version: V3
@@ -263,23 +266,23 @@ dynamic_resources:
       api_type: GRPC
       transport_api_version: V3
       grpc_services:
-      - envoy_grpc:
-          cluster_name: xds_cluster
+        - envoy_grpc:
+            cluster_name: xds_cluster
 
 static_resources:
   clusters:
-  - name: xds_cluster
-    type: STATIC
-    http2_protocol_options: {}
-    load_assignment:
-      cluster_name: xds_cluster
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              socket_address:
-                address: istiod.istio-system
-                port_value: 15010
+    - name: xds_cluster
+      type: STATIC
+      http2_protocol_options: {}
+      load_assignment:
+        cluster_name: xds_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: istiod.istio-system
+                      port_value: 15010
 ```
 
 ---
@@ -313,6 +316,7 @@ Server::InstanceImpl::initialize()
 ```
 
 **Código**:
+
 ```
 source/server/server.cc:77-109
 source/server/worker_impl.h:30-100

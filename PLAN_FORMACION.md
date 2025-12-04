@@ -6,13 +6,13 @@
 
 ### 1.1 Perfil del Usuario
 
-| Aspecto | Detalle |
-|---------|---------|
-| **Experiencia general** | 20+ años en desarrollo de software |
-| **Lenguajes principales** | C++ y Java |
-| **Conocimientos de Rust/Go** | Básicos, no son lenguajes principales |
-| **Conocimientos de redes/proxies** | Limitados, recién iniciado en este dominio |
-| **Situación actual** | Recién incorporado a proyectos Envoy y ztunnel en Red Hat |
+| Aspecto                            | Detalle                                                   |
+| ---------------------------------- | --------------------------------------------------------- |
+| **Experiencia general**            | 20+ años en desarrollo de software                        |
+| **Lenguajes principales**          | C++ y Java                                                |
+| **Conocimientos de Rust/Go**       | Básicos, no son lenguajes principales                     |
+| **Conocimientos de redes/proxies** | Limitados, recién iniciado en este dominio                |
+| **Situación actual**               | Recién incorporado a proyectos Envoy y ztunnel en Red Hat |
 
 ### 1.2 Objetivos de Aprendizaje
 
@@ -43,10 +43,10 @@ El objetivo final es **entender perfectamente cómo funciona un proxy de red** y
 
 ### 1.3 Repositorios de Trabajo
 
-| Proyecto | Ubicación | Lenguaje |
-|----------|-----------|----------|
-| **Envoy** | `/home/jojosneg/source/redhat/envoy/upstream/main` | C++20 |
-| **ztunnel** | `/home/jojosneg/source/redhat/ztunnel/upstream/master` | Rust |
+| Proyecto    | Ubicación                                              | Lenguaje |
+| ----------- | ------------------------------------------------------ | -------- |
+| **Envoy**   | `/home/jojosneg/source/redhat/envoy/upstream/main`     | C++20    |
+| **ztunnel** | `/home/jojosneg/source/redhat/ztunnel/upstream/master` | Rust     |
 
 ---
 
@@ -54,12 +54,12 @@ El objetivo final es **entender perfectamente cómo funciona un proxy de red** y
 
 ### 2.1 Preferencias Confirmadas por el Usuario
 
-| Aspecto | Preferencia |
-|---------|-------------|
-| **Formato** | Documentos Markdown (.md) |
-| **Ubicación** | Directorio separado: `~/source/redhat/proxy-training/` |
-| **Profundidad** | **Deep dive** con análisis exhaustivo de código fuente |
-| **Idioma** | **Mixto**: conceptos en español, términos técnicos en inglés |
+| Aspecto         | Preferencia                                                  |
+| --------------- | ------------------------------------------------------------ |
+| **Formato**     | Documentos Markdown (.md)                                    |
+| **Ubicación**   | Directorio separado: `~/source/redhat/proxy-training/`       |
+| **Profundidad** | **Deep dive** con análisis exhaustivo de código fuente       |
+| **Idioma**      | **Mixto**: conceptos en español, términos técnicos en inglés |
 
 ### 2.2 Estructura de Cada Documento
 
@@ -69,15 +69,18 @@ Cada documento DEBE incluir:
 # Título del Tema
 
 ---
+
 **Módulo**: X - Nombre del Módulo
 **Tema**: Nombre del tema
 **Tiempo estimado**: X horas
 **Prerrequisitos**: [lista de documentos previos]
+
 ---
 
 ## Objetivos de Aprendizaje
 
 Al completar este documento:
+
 - Objetivo 1
 - Objetivo 2
 - Objetivo 3
@@ -94,6 +97,7 @@ Términos técnicos en inglés (con definición la primera vez que aparecen).
 ### 1.2 Diagramas
 
 Usar diagramas ASCII o Mermaid para visualizar:
+
 - Arquitecturas
 - Flujos de datos
 - Secuencias de operaciones
@@ -101,6 +105,7 @@ Usar diagramas ASCII o Mermaid para visualizar:
 ### 1.3 Deep Dive de Código
 
 Referencias exactas al código fuente:
+
 - Formato: `archivo.cc:línea` o `archivo.cc:línea-línea`
 - Ejemplo: `source/common/http/conn_manager_impl.cc:394-420`
 
@@ -108,6 +113,7 @@ Incluir fragmentos de código relevantes con explicación línea por línea
 de funciones críticas.
 
 Explicar:
+
 - Decisiones de diseño
 - Patrones arquitectónicos identificados
 - Por qué se implementó de esa manera
@@ -133,9 +139,9 @@ Explicar:
 
 ## Referencias en el Código
 
-| Archivo | Descripción |
-|---------|-------------|
-| `path/to/file.cc:line` | Qué hace |
+| Archivo                | Descripción |
+| ---------------------- | ----------- |
+| `path/to/file.cc:line` | Qué hace    |
 
 ---
 
@@ -222,14 +228,14 @@ void ConnectionManagerImpl::onHeadersComplete(StreamDecoderPtr&& decoder) {
 
 El plan se organiza en **6 módulos progresivos**:
 
-| Módulo | Nombre | Objetivo | Duración Est. |
-|--------|--------|----------|---------------|
-| 1 | Fundamentos de Redes | Base teórica: OSI, TCP, HTTP, TLS | 1-2 días |
-| 2 | Proxies - Conceptos | Qué es un proxy, L4 vs L7, casos de uso | 2-3 días |
-| 3 | Arquitectura de Envoy | Deep dive en Envoy: threading, filters, xDS | 4-5 días |
-| 4 | Arquitectura de ztunnel | Deep dive en ztunnel: Tokio, HBONE, ambient | 3-4 días |
-| 5 | Comparativa | Envoy vs ztunnel, cuándo usar cada uno | 2 días |
-| 6 | Avanzado | Temas especializados según necesidad | Ongoing |
+| Módulo | Nombre                  | Objetivo                                    | Duración Est. |
+| ------ | ----------------------- | ------------------------------------------- | ------------- |
+| 1      | Fundamentos de Redes    | Base teórica: OSI, TCP, HTTP, TLS           | 1-2 días      |
+| 2      | Proxies - Conceptos     | Qué es un proxy, L4 vs L7, casos de uso     | 2-3 días      |
+| 3      | Arquitectura de Envoy   | Deep dive en Envoy: threading, filters, xDS | 4-5 días      |
+| 4      | Arquitectura de ztunnel | Deep dive en ztunnel: Tokio, HBONE, ambient | 3-4 días      |
+| 5      | Comparativa             | Envoy vs ztunnel, cuándo usar cada uno      | 2 días        |
+| 6      | Avanzado                | Temas especializados según necesidad        | Ongoing       |
 
 ### 3.2 Estructura de Directorios
 
@@ -310,16 +316,16 @@ El plan se organiza en **6 módulos progresivos**:
 
 ### 4.1 Resumen de Progreso
 
-| Módulo | Documentos | Estado | % |
-|--------|------------|--------|---|
-| Módulo 1: Fundamentos Redes | 4/4 | ✅ Completo | 100% |
-| Módulo 2: Proxies Conceptos | 4/4 | ✅ Completo | 100% |
-| Módulo 3: Envoy Arquitectura | 6/6 | ✅ Completo | 100% |
-| Módulo 4: ztunnel Arquitectura | 4/4 | ✅ Completo | 100% |
-| Módulo 5: Comparativa | 3/3 | ✅ Completo | 100% |
-| Módulo 6: Avanzado | 5/5 | ✅ Completo | 100% |
-| Ejercicios | 5/5 | ✅ Completo | 100% |
-| Recursos | 2/2 | ✅ Completo | 100% |
+| Módulo                         | Documentos | Estado      | %    |
+| ------------------------------ | ---------- | ----------- | ---- |
+| Módulo 1: Fundamentos Redes    | 4/4        | ✅ Completo | 100% |
+| Módulo 2: Proxies Conceptos    | 4/4        | ✅ Completo | 100% |
+| Módulo 3: Envoy Arquitectura   | 6/6        | ✅ Completo | 100% |
+| Módulo 4: ztunnel Arquitectura | 4/4        | ✅ Completo | 100% |
+| Módulo 5: Comparativa          | 3/3        | ✅ Completo | 100% |
+| Módulo 6: Avanzado             | 5/5        | ✅ Completo | 100% |
+| Ejercicios                     | 5/5        | ✅ Completo | 100% |
+| Recursos                       | 2/2        | ✅ Completo | 100% |
 
 **Total**: 33/33 documentos (100% completado)
 
@@ -327,76 +333,76 @@ El plan se organiza en **6 módulos progresivos**:
 
 #### ✅ Módulo 1: Fundamentos de Redes (COMPLETO)
 
-| Archivo | Contenido | Estado |
-|---------|-----------|--------|
-| `01_modelo_osi.md` | Modelo OSI, capas 1-7, foco en L3/L4/L7, encapsulación | ✅ |
-| `02_tcp_udp.md` | TCP handshake, UDP, sockets, connection pooling | ✅ |
-| `03_http_protocols.md` | HTTP/1.1, HTTP/2, gRPC, multiplexing, HPACK | ✅ |
-| `04_tls_mtls.md` | TLS 1.2/1.3, mTLS, SPIFFE, X.509, certificados | ✅ |
+| Archivo                | Contenido                                              | Estado |
+| ---------------------- | ------------------------------------------------------ | ------ |
+| `01_modelo_osi.md`     | Modelo OSI, capas 1-7, foco en L3/L4/L7, encapsulación | ✅     |
+| `02_tcp_udp.md`        | TCP handshake, UDP, sockets, connection pooling        | ✅     |
+| `03_http_protocols.md` | HTTP/1.1, HTTP/2, gRPC, multiplexing, HPACK            | ✅     |
+| `04_tls_mtls.md`       | TLS 1.2/1.3, mTLS, SPIFFE, X.509, certificados         | ✅     |
 
 #### ✅ Módulo 2: Proxies Conceptos (COMPLETO)
 
-| Archivo | Contenido | Estado |
-|---------|-----------|--------|
-| `01_que_es_proxy.md` | Forward/reverse proxy, transparent proxy, service mesh | ✅ |
-| `02_proxy_l4.md` | L4 deep dive, qué ve/no ve, ztunnel como ejemplo | ✅ |
-| `03_proxy_l7.md` | L7 deep dive, filter chain, HTTP parsing, Envoy | ✅ |
-| `04_comparativa.md` | L4 vs L7, framework de decisión, casos de uso | ✅ |
+| Archivo              | Contenido                                              | Estado |
+| -------------------- | ------------------------------------------------------ | ------ |
+| `01_que_es_proxy.md` | Forward/reverse proxy, transparent proxy, service mesh | ✅     |
+| `02_proxy_l4.md`     | L4 deep dive, qué ve/no ve, ztunnel como ejemplo       | ✅     |
+| `03_proxy_l7.md`     | L7 deep dive, filter chain, HTTP parsing, Envoy        | ✅     |
+| `04_comparativa.md`  | L4 vs L7, framework de decisión, casos de uso          | ✅     |
 
 #### ✅ Módulo 3: Envoy Arquitectura (COMPLETO)
 
-| Archivo | Contenido | Estado |
-|---------|-----------|--------|
-| `01_vision_general.md` | Arquitectura, data/control plane, estructura código | ✅ |
-| `02_threading_model.md` | Main/worker threads, event loop, TLS, hot restart | ✅ |
-| `03_life_of_request.md` | Flujo completo: listener → filters → router → upstream | ✅ |
-| `04_filter_chains.md` | Network filters, HTTP filters, interfaces, ejemplos | ✅ |
-| `05_cluster_management.md` | Clusters, LB algorithms, health checks, circuit breaking | ✅ |
-| `06_xds_protocol.md` | LDS/CDS/RDS/EDS/SDS, ADS, ACK/NACK, Istio integration | ✅ |
+| Archivo                    | Contenido                                                | Estado |
+| -------------------------- | -------------------------------------------------------- | ------ |
+| `01_vision_general.md`     | Arquitectura, data/control plane, estructura código      | ✅     |
+| `02_threading_model.md`    | Main/worker threads, event loop, TLS, hot restart        | ✅     |
+| `03_life_of_request.md`    | Flujo completo: listener → filters → router → upstream   | ✅     |
+| `04_filter_chains.md`      | Network filters, HTTP filters, interfaces, ejemplos      | ✅     |
+| `05_cluster_management.md` | Clusters, LB algorithms, health checks, circuit breaking | ✅     |
+| `06_xds_protocol.md`       | LDS/CDS/RDS/EDS/SDS, ADS, ACK/NACK, Istio integration    | ✅     |
 
 #### ✅ Módulo 4: ztunnel Arquitectura (COMPLETO)
 
-| Archivo | Contenido | Estado |
-|---------|-----------|--------|
-| `01_ambient_mode_context.md` | Por qué ambient, ztunnel vs sidecar, arquitectura | ✅ |
-| `02_threading_tokio.md` | Tokio runtime, async/await, comparación con Envoy | ✅ |
-| `03_hbone_protocol.md` | HBONE, HTTP/2 CONNECT, mTLS, SPIFFE certs | ✅ |
-| `04_traffic_redirection.md` | iptables, in-pod redirection, istio-cni | ✅ |
+| Archivo                      | Contenido                                         | Estado |
+| ---------------------------- | ------------------------------------------------- | ------ |
+| `01_ambient_mode_context.md` | Por qué ambient, ztunnel vs sidecar, arquitectura | ✅     |
+| `02_threading_tokio.md`      | Tokio runtime, async/await, comparación con Envoy | ✅     |
+| `03_hbone_protocol.md`       | HBONE, HTTP/2 CONNECT, mTLS, SPIFFE certs         | ✅     |
+| `04_traffic_redirection.md`  | iptables, in-pod redirection, istio-cni           | ✅     |
 
 #### ✅ Módulo 5: Comparativa (COMPLETO)
 
-| Archivo | Contenido | Estado |
-|---------|-----------|--------|
-| `01_envoy_vs_ztunnel.md` | Tabla comparativa, casos de uso, trade-offs | ✅ |
-| `02_ambient_mode_completo.md` | ztunnel + waypoint, flujo completo | ✅ |
-| `03_decision_framework.md` | Árbol de decisión, recomendaciones | ✅ |
+| Archivo                       | Contenido                                   | Estado |
+| ----------------------------- | ------------------------------------------- | ------ |
+| `01_envoy_vs_ztunnel.md`      | Tabla comparativa, casos de uso, trade-offs | ✅     |
+| `02_ambient_mode_completo.md` | ztunnel + waypoint, flujo completo          | ✅     |
+| `03_decision_framework.md`    | Árbol de decisión, recomendaciones          | ✅     |
 
 #### ✅ Módulo 6: Avanzado (COMPLETO)
 
-| Archivo | Contenido | Estado |
-|---------|-----------|--------|
-| `envoy/custom_filters.md` | Cómo escribir un HTTP filter | ✅ |
-| `envoy/hot_restart.md` | Mecanismo de hot restart | ✅ |
-| `envoy/performance_tuning.md` | pprof, stats, optimización | ✅ |
-| `ztunnel/rust_async_patterns.md` | Patrones async en Rust | ✅ |
-| `ztunnel/certificate_rotation.md` | Rotación de certs SPIFFE | ✅ |
+| Archivo                           | Contenido                    | Estado |
+| --------------------------------- | ---------------------------- | ------ |
+| `envoy/custom_filters.md`         | Cómo escribir un HTTP filter | ✅     |
+| `envoy/hot_restart.md`            | Mecanismo de hot restart     | ✅     |
+| `envoy/performance_tuning.md`     | pprof, stats, optimización   | ✅     |
+| `ztunnel/rust_async_patterns.md`  | Patrones async en Rust       | ✅     |
+| `ztunnel/certificate_rotation.md` | Rotación de certs SPIFFE     | ✅     |
 
 #### ✅ Ejercicios (COMPLETO)
 
-| Archivo | Contenido | Estado |
-|---------|-----------|--------|
-| `envoy/01_compilar_ejecutar.md` | Build y run de Envoy | ✅ |
-| `envoy/02_trazar_request.md` | Añadir logging, trazar request | ✅ |
-| `envoy/03_modificar_filtro.md` | Modificar un filter existente | ✅ |
-| `ztunnel/01_build_run.md` | Build y run de ztunnel | ✅ |
-| `ztunnel/02_analizar_conexion.md` | Analizar flujo de conexión | ✅ |
+| Archivo                           | Contenido                      | Estado |
+| --------------------------------- | ------------------------------ | ------ |
+| `envoy/01_compilar_ejecutar.md`   | Build y run de Envoy           | ✅     |
+| `envoy/02_trazar_request.md`      | Añadir logging, trazar request | ✅     |
+| `envoy/03_modificar_filtro.md`    | Modificar un filter existente  | ✅     |
+| `ztunnel/01_build_run.md`         | Build y run de ztunnel         | ✅     |
+| `ztunnel/02_analizar_conexion.md` | Analizar flujo de conexión     | ✅     |
 
 #### ✅ Recursos (COMPLETO)
 
-| Archivo | Contenido | Estado |
-|---------|-----------|--------|
-| `README.md` | Índice completo, guía de uso | ✅ |
-| `recursos/referencias.md` | Links oficiales, RFCs, herramientas | ✅ |
+| Archivo                   | Contenido                           | Estado |
+| ------------------------- | ----------------------------------- | ------ |
+| `README.md`               | Índice completo, guía de uso        | ✅     |
+| `recursos/referencias.md` | Links oficiales, RFCs, herramientas | ✅     |
 
 ---
 
@@ -404,54 +410,59 @@ El plan se organiza en **6 módulos progresivos**:
 
 ### 5.1 Envoy
 
-| Archivo | Propósito | Prioridad |
-|---------|-----------|-----------|
-| `source/common/http/conn_manager_impl.h:60` | HTTP Connection Manager core | Alta |
-| `source/extensions/filters/http/router/router.cc:400-800` | Router filter, forwarding | Alta |
-| `source/common/upstream/cluster_manager_impl.h:98` | Cluster management | Alta |
-| `source/common/upstream/load_balancer_impl.cc:200-400` | LB algorithms | Media |
-| `source/common/event/dispatcher_impl.h:36` | Event loop | Media |
-| `source/server/worker_impl.h:30-100` | Worker threads | Media |
-| `source/common/network/filter_manager_impl.cc:100-300` | Filter chain execution | Media |
-| `source/common/config/grpc_mux_impl.cc` | xDS subscription | Media |
+| Archivo                                                   | Propósito                    | Prioridad |
+| --------------------------------------------------------- | ---------------------------- | --------- |
+| `source/common/http/conn_manager_impl.h:60`               | HTTP Connection Manager core | Alta      |
+| `source/extensions/filters/http/router/router.cc:400-800` | Router filter, forwarding    | Alta      |
+| `source/common/upstream/cluster_manager_impl.h:98`        | Cluster management           | Alta      |
+| `source/common/upstream/load_balancer_impl.cc:200-400`    | LB algorithms                | Media     |
+| `source/common/event/dispatcher_impl.h:36`                | Event loop                   | Media     |
+| `source/server/worker_impl.h:30-100`                      | Worker threads               | Media     |
+| `source/common/network/filter_manager_impl.cc:100-300`    | Filter chain execution       | Media     |
+| `source/common/config/grpc_mux_impl.cc`                   | xDS subscription             | Media     |
 
 ### 5.2 ztunnel
 
-| Archivo | Propósito | Prioridad |
-|---------|-----------|-----------|
-| `ARCHITECTURE.md` | Threading, puertos, diseño | Alta |
-| `README.md` | Overview, métricas, TLS providers | Alta |
-| `src/proxy/` | Core proxy implementation | Alta |
-| `src/xds/` | xDS client | Media |
-| `src/identity/` | SPIFFE certificate management | Media |
+| Archivo           | Propósito                         | Prioridad |
+| ----------------- | --------------------------------- | --------- |
+| `ARCHITECTURE.md` | Threading, puertos, diseño        | Alta      |
+| `README.md`       | Overview, métricas, TLS providers | Alta      |
+| `src/proxy/`      | Core proxy implementation         | Alta      |
+| `src/xds/`        | xDS client                        | Media     |
+| `src/identity/`   | SPIFFE certificate management     | Media     |
 
 ---
 
 ## 6. Plan de Estudio Recomendado
 
 ### Semana 1: Fundamentos
+
 - Completar Módulos 1 y 2
 - Leer documentación teórica
 - Familiarizarse con terminología
 
 ### Semanas 2-3: Envoy
+
 - Completar Módulo 3
 - Compilar y ejecutar Envoy
 - Trazar requests, analizar código
 - Ejercicios prácticos
 
 ### Semanas 3-4: ztunnel
+
 - Completar Módulo 4
 - Familiarizarse con Rust async
 - Compilar y analizar ztunnel
 - Ejercicios prácticos
 
 ### Semana 5: Integración
+
 - Completar Módulo 5
 - Entender ambient mode completo
 - Experimentar con ambos proyectos
 
 ### Ongoing: Especialización
+
 - Módulo 6 según necesidades del trabajo
 - Contribuciones al código
 - Casos de uso específicos
@@ -461,16 +472,19 @@ El plan se organiza en **6 módulos progresivos**:
 ## 7. Recursos de Referencia
 
 ### Documentación Oficial
+
 - [Envoy Docs](https://www.envoyproxy.io/docs/envoy/latest/)
 - [Istio Docs](https://istio.io/latest/docs/)
 - [Istio Ambient Architecture](https://istio.io/latest/docs/ambient/architecture/)
 
 ### Artículos Clave
+
 - [Envoy Threading Model](https://blog.envoyproxy.io/envoy-threading-model-a8d44b922310)
 - [Life of a Request](https://www.envoyproxy.io/docs/envoy/latest/intro/life_of_a_request)
 - [Rust-Based Ztunnel](https://istio.io/latest/blog/2023/rust-based-ztunnel/)
 
 ### En los Repositorios
+
 - Envoy: `docs/analysis/00_architecture_overview.md`
 - ztunnel: `ARCHITECTURE.md`, `README.md`
 
@@ -498,5 +512,5 @@ Regenera el documento X con más detalle en la sección Y
 
 ---
 
-*Plan creado: 2025-12-04*
-*Última actualización: 2025-12-04*
+_Plan creado: 2025-12-04_
+_Última actualización: 2025-12-04_

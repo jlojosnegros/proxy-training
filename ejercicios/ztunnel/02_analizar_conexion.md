@@ -1,9 +1,11 @@
 # Ejercicio: Analizar Flujo de Conexión en ztunnel
 
 ---
+
 **Tipo**: Ejercicio práctico
 **Tiempo estimado**: 2 horas
 **Prerrequisitos**: Ejercicio 01 completado
+
 ---
 
 ## Objetivo
@@ -23,6 +25,7 @@ cd /home/jojosneg/source/redhat/ztunnel/upstream/master
 ### 1.2 Tener IDE Listo
 
 Recomendado: VS Code con rust-analyzer
+
 ```bash
 # Instalar rust-analyzer si no lo tienes
 rustup component add rust-analyzer
@@ -259,13 +262,13 @@ Pod B:8080
 
 Para cada paso, encuentra el archivo y función correspondiente:
 
-| Paso | Archivo | Función/Línea |
-|------|---------|---------------|
-| Accept outbound | `src/proxy/outbound.rs` | `accept_*` |
-| Get original dst | `src/proxy/???` | `get_original_dst` |
-| Lookup workload | `src/xds/???` | `lookup` |
-| Get cert | `src/identity/???` | `get_cert` |
-| HBONE connect | `src/proxy/hbone.rs?` | `connect_*` |
+| Paso             | Archivo                 | Función/Línea      |
+| ---------------- | ----------------------- | ------------------ |
+| Accept outbound  | `src/proxy/outbound.rs` | `accept_*`         |
+| Get original dst | `src/proxy/???`         | `get_original_dst` |
+| Lookup workload  | `src/xds/???`           | `lookup`           |
+| Get cert         | `src/identity/???`      | `get_cert`         |
+| HBONE connect    | `src/proxy/hbone.rs?`   | `connect_*`        |
 
 ---
 
@@ -325,8 +328,8 @@ Después de este ejercicio deberías:
 **Plan de formación completado!**
 
 Para continuar aprendiendo:
+
 - Contribuye un fix o feature pequeño
 - Añade tests para casos edge
 - Documenta algo que encontraste confuso
 - Experimenta con la configuración
-

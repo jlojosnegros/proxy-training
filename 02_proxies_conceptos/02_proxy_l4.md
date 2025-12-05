@@ -228,7 +228,8 @@ Cuando solo necesitas cifrado sin L7:
 
 ```mermaid
 flowchart LR
-    A["App A<br/>HTTP, gRPC, Redis"] <-->|mTLS (L4)<br/>Las apps no saben<br/>que hay mTLS| B["App B<br/>HTTP, gRPC, Redis"]
+    A["App A<br/>HTTP, gRPC, Redis"] -->|mTLS L4| B["App B<br/>HTTP, gRPC, Redis"]
+    B -->|mTLS L4| A
 ```
 
 ### 4.2 Protocolos No-HTTP

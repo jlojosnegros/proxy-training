@@ -29,7 +29,7 @@ Un proxy L7 **entiende el protocolo de aplicación**:
 ```mermaid
 flowchart TB
     subgraph L7["Lo que VE un proxy L7"]
-        L4["TODO lo de L4 (IP, puertos, TCP) PLUS:"]
+        L4["Todo lo de L4: IP, puertos, TCP +"]
 
         subgraph HTTP["HTTP Request ✓"]
             h1["Method: GET"]
@@ -46,7 +46,7 @@ flowchart TB
         end
 
         subgraph Body["HTTP Body ✓"]
-            body["{\"user_id\": 123, \"action\": \"create\"}"]
+            body["JSON request body"]
         end
 
         subgraph GRPC["gRPC Specifics ✓"]

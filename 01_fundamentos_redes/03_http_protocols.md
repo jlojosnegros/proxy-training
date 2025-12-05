@@ -47,7 +47,7 @@ block-beta
     block:body
         columns 1
         bd["Body (opcional)"]
-        data['{"filter": "active"}']
+        data["JSON body"]
     end
 ```
 
@@ -84,7 +84,7 @@ block-beta
     block:body
         columns 1
         bd["Body"]
-        data["[{\"id\": 1, \"name\": \"John\"}, {\"id\": 2, \"name\": \"Jane\"}]"]
+        data["JSON array response"]
     end
 ```
 

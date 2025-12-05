@@ -26,39 +26,30 @@ Al completar este documento:
 
 Un proxy L4 opera en la **capa de transporte** del modelo OSI. Solo tiene acceso a:
 
+```mermaid
+flowchart TB
+    subgraph L4["Lo que VE un proxy L4"]
+        subgraph IP["IP Header ✓"]
+            ip1["Source IP: 10.0.1.5"]
+            ip2["Destination IP: 10.0.2.10"]
+            ip3["Protocol: TCP (6)"]
+        end
+
+        subgraph TCP["TCP Header ✓"]
+            tcp1["Source Port: 45678"]
+            tcp2["Destination Port: 8080"]
+            tcp3["Flags: SYN, ACK, etc."]
+        end
+
+        subgraph Payload["Payload ✗ (bytes opacos)"]
+            p1["GET /api/users HTTP/1.1"]
+            p2["Host: api.example.com"]
+            p3["Authorization: Bearer eyJ..."]
+        end
+    end
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ Lo que VE un proxy L4                                           │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ IP Header                                                 │  │
-│  ├──────────────────────────────────────────────────────────┤  │
-│  │ Source IP:      10.0.1.5                           ✓     │  │
-│  │ Destination IP: 10.0.2.10                          ✓     │  │
-│  │ Protocol:       TCP (6)                            ✓     │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ TCP Header                                                │  │
-│  ├──────────────────────────────────────────────────────────┤  │
-│  │ Source Port:      45678                            ✓     │  │
-│  │ Destination Port: 8080                             ✓     │  │
-│  │ Flags:            SYN, ACK, etc.                   ✓     │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ Payload (Application Data)                                │  │
-│  ├──────────────────────────────────────────────────────────┤  │
-│  │ GET /api/users HTTP/1.1                            ✗     │  │
-│  │ Host: api.example.com                              ✗     │  │
-│  │ Authorization: Bearer eyJ...                       ✗     │  │
-│  │                                                    │     │  │
-│  │ (El proxy L4 ve bytes opacos, no entiende HTTP)   │     │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+
+*(El proxy L4 no entiende HTTP, solo ve bytes)*
 
 ### 1.2 Qué Puede y No Puede Hacer
 
@@ -76,41 +67,15 @@ Un proxy L4 opera en la **capa de transporte** del modelo OSI. Solo tiene acceso
 
 ### 1.3 El Flujo de un Proxy L4
 
-```
-1. ACCEPT CONNECTION
-   ┌────────────────────────────────────────────────────────────┐
-   │ Downstream client conecta al proxy                         │
-   │ Proxy acepta: source=10.0.1.5:45678, dest=proxy:8080      │
-   └────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-2. SELECT UPSTREAM (basado en IP:puerto destino)
-   ┌────────────────────────────────────────────────────────────┐
-   │ Si dest=10.0.2.10:8080 → cluster "backend"                │
-   │ Load balancer selecciona: 10.0.3.1:8080                   │
-   └────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-3. ESTABLISH UPSTREAM CONNECTION
-   ┌────────────────────────────────────────────────────────────┐
-   │ Proxy conecta a 10.0.3.1:8080                             │
-   │ (Opcionalmente con mTLS)                                   │
-   └────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-4. BIDIRECTIONAL BYTE COPY
-   ┌────────────────────────────────────────────────────────────┐
-   │ downstream → upstream: copia bytes                         │
-   │ upstream → downstream: copia bytes                         │
-   │ (Sin interpretar contenido)                                │
-   └────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-5. CLOSE CONNECTIONS
-   ┌────────────────────────────────────────────────────────────┐
-   │ FIN de cualquier lado → cerrar ambas conexiones           │
-   │ Emitir métricas: bytes_sent, bytes_recv, duration          │
-   └────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    A["1. ACCEPT CONNECTION<br/>Downstream conecta al proxy<br/>source=10.0.1.5:45678"]
+    B["2. SELECT UPSTREAM<br/>dest=10.0.2.10:8080 → cluster 'backend'<br/>Load balancer selecciona: 10.0.3.1:8080"]
+    C["3. ESTABLISH UPSTREAM CONNECTION<br/>Proxy conecta a 10.0.3.1:8080<br/>(Opcionalmente con mTLS)"]
+    D["4. BIDIRECTIONAL BYTE COPY<br/>downstream ↔ upstream: copia bytes<br/>(Sin interpretar contenido)"]
+    E["5. CLOSE CONNECTIONS<br/>FIN → cerrar ambas conexiones<br/>Emitir métricas: bytes_sent, bytes_recv, duration"]
+
+    A --> B --> C --> D --> E
 ```
 
 ---
@@ -121,74 +86,44 @@ Un proxy L4 opera en la **capa de transporte** del modelo OSI. Solo tiene acceso
 
 ztunnel es un **proxy L4 puro** diseñado específicamente para Istio ambient mode:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Node                                     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                      ztunnel                             │   │
-│  ├─────────────────────────────────────────────────────────┤   │
-│  │                                                         │   │
-│  │  Port 15001 ─────────► Outbound traffic capture         │   │
-│  │  Port 15006 ─────────► Inbound plaintext capture        │   │
-│  │  Port 15008 ─────────► HBONE (mTLS tunnel)              │   │
-│  │                                                         │   │
-│  │  ┌───────────────────────────────────────────────────┐ │   │
-│  │  │ Funciones:                                         │ │   │
-│  │  │ ✓ mTLS entre pods                                  │ │   │
-│  │  │ ✓ Identity (SPIFFE)                                │ │   │
-│  │  │ ✓ L4 Authorization                                 │ │   │
-│  │  │ ✓ Telemetry (conexiones, bytes)                    │ │   │
-│  │  │ ✗ HTTP routing                                     │ │   │
-│  │  │ ✗ HTTP header manipulation                         │ │   │
-│  │  │ ✗ JWT validation                                   │ │   │
-│  │  └───────────────────────────────────────────────────┘ │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                           │                                     │
-│            ┌──────────────┼──────────────┐                     │
-│            │              │              │                     │
-│            ▼              ▼              ▼                     │
-│       ┌────────┐    ┌────────┐    ┌────────┐                  │
-│       │ Pod A  │    │ Pod B  │    │ Pod C  │                  │
-│       │ (app)  │    │ (app)  │    │ (app)  │                  │
-│       └────────┘    └────────┘    └────────┘                  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Node["Node"]
+        subgraph ZT["ztunnel"]
+            P1["Port 15001 → Outbound traffic capture"]
+            P2["Port 15006 → Inbound plaintext capture"]
+            P3["Port 15008 → HBONE (mTLS tunnel)"]
+
+            F["Funciones:<br/>✓ mTLS entre pods<br/>✓ Identity (SPIFFE)<br/>✓ L4 Authorization<br/>✓ Telemetry<br/>✗ HTTP routing<br/>✗ JWT validation"]
+        end
+
+        ZT --> PA["Pod A (app)"]
+        ZT --> PB["Pod B (app)"]
+        ZT --> PC["Pod C (app)"]
+    end
 ```
 
 ### 2.2 Flujo de Tráfico en ztunnel
 
 **Outbound (Pod → External)**:
 
-```
-┌────────┐      iptables        ┌──────────┐       HBONE        ┌──────────┐
-│ Pod A  │ ─────redirect───────>│ ztunnel  │─────mTLS────────>│ ztunnel  │
-│        │      to 15001        │  (node)  │     port 15008    │ (remote) │
-│app:8080│                      │          │                   │          │
-└────────┘                      └──────────┘                   └──────────┘
-     │                               │
-     └── App cree que conecta        └── ztunnel:
-         a 10.0.2.5:80                   1. Intercepta conexión
-                                          2. Identifica destino
-                                          3. Establece HBONE tunnel
-                                          4. Copia bytes
+```mermaid
+flowchart LR
+    PA["Pod A<br/>app:8080"] -->|iptables redirect<br/>to 15001| ZTA["ztunnel<br/>(node)"]
+    ZTA -->|HBONE/mTLS<br/>port 15008| ZTR["ztunnel<br/>(remote)"]
+
+    Note1["App cree que conecta<br/>a 10.0.2.5:80"]
+    Note2["ztunnel:<br/>1. Intercepta<br/>2. Identifica destino<br/>3. HBONE tunnel<br/>4. Copia bytes"]
 ```
 
 **Inbound (External → Pod)**:
 
-```
-┌──────────┐     HBONE         ┌──────────┐     plaintext    ┌────────┐
-│ ztunnel  │────mTLS──────────>│ ztunnel  │─────redirect────>│ Pod B  │
-│ (remote) │    port 15008     │  (node)  │    to localhost  │        │
-│          │                   │          │                  │app:8080│
-└──────────┘                   └──────────┘                  └────────┘
-                                    │
-                                    └── ztunnel:
-                                         1. Recibe HBONE
-                                         2. Valida mTLS
-                                         3. Desencapsula
-                                         4. Envía a pod
+```mermaid
+flowchart LR
+    ZTR["ztunnel<br/>(remote)"] -->|HBONE/mTLS<br/>port 15008| ZTN["ztunnel<br/>(node)"]
+    ZTN -->|plaintext<br/>redirect to localhost| PB["Pod B<br/>app:8080"]
+
+    Note["ztunnel:<br/>1. Recibe HBONE<br/>2. Valida mTLS<br/>3. Desencapsula<br/>4. Envía a pod"]
 ```
 
 ### 2.3 Código de ztunnel
@@ -291,14 +226,9 @@ Este filtro:
 
 Cuando solo necesitas cifrado sin L7:
 
-```
-┌────────┐                    ┌────────┐
-│ App A  │◄──── mTLS ────────►│ App B  │
-│        │      (L4)          │        │
-│ HTTP   │                    │ HTTP   │
-│ gRPC   │  Las apps no saben │ gRPC   │
-│ Redis  │  que hay mTLS      │ Redis  │
-└────────┘                    └────────┘
+```mermaid
+flowchart LR
+    A["App A<br/>HTTP, gRPC, Redis"] <-->|mTLS (L4)<br/>Las apps no saben<br/>que hay mTLS| B["App B<br/>HTTP, gRPC, Redis"]
 ```
 
 ### 4.2 Protocolos No-HTTP
@@ -316,36 +246,22 @@ Para protocolos que Envoy no parsea nativamente:
 
 Cuando la latencia es crítica:
 
-```
-Comparación de overhead:
+| Aspecto | L4 Proxy | L7 Proxy |
+|---------|----------|----------|
+| Parse | IP header + TCP header | IP + TCP + HTTP headers + body |
+| Process | Minimal | Filters, routing rules |
+| Time | ~microseconds | ~milliseconds |
 
-L4 Proxy:
-  Parse: IP header + TCP header
-  Time: ~microseconds
-
-L7 Proxy:
-  Parse: IP + TCP + HTTP headers + body (si aplica)
-  Process: Filters, routing rules
-  Time: ~milliseconds
-
-Para 1 millón de req/s, la diferencia importa.
-```
+*Para 1 millón de req/s, la diferencia importa.*
 
 ### 4.4 Service Mesh a Escala
 
-```
-Cluster con 1000 pods:
+| Modelo | Instancias | RAM por instancia | RAM Total |
+|--------|------------|-------------------|-----------|
+| Sidecar (L7) | 1000 Envoy sidecars | ~100MB | ~100GB |
+| Node Proxy (L4) | 50 ztunnels (50 nodos) | ~50MB | ~2.5GB |
 
-Modelo Sidecar (L7):
-  1000 Envoy sidecars
-  ~100MB RAM cada uno
-  = ~100GB RAM total
-
-Modelo Node Proxy (L4):
-  50 ztunnels (50 nodos)
-  ~50MB RAM cada uno
-  = ~2.5GB RAM total
-```
+*Ahorro: ~97.5% en RAM*
 
 ---
 
@@ -353,41 +269,32 @@ Modelo Node Proxy (L4):
 
 ### 5.1 No Puede Hacer Routing Inteligente
 
-```
-Request 1: GET /api/v1/users
-Request 2: GET /api/v2/users
+| Request | Lo que L4 ve | Lo que NO puede hacer |
+|---------|--------------|----------------------|
+| GET /api/v1/users | TCP bytes to 10.0.1.5:8080 | Enviar v1 a cluster-v1 |
+| GET /api/v2/users | TCP bytes to 10.0.1.5:8080 | Enviar v2 a cluster-v2 |
 
-Un proxy L4 ve ambos como:
-  "TCP bytes to 10.0.1.5:8080"
-
-No puede:
-  - Enviar v1 a cluster-v1
-  - Enviar v2 a cluster-v2
-```
+*Ambos van al mismo destino porque L4 no entiende el path*
 
 ### 5.2 No Puede Validar Auth por Request
 
-```
-Request con JWT válido → ✓
-Request con JWT inválido → ✗
+| Request | Resultado esperado | L4 puede verificar? |
+|---------|-------------------|---------------------|
+| Request con JWT válido | ✓ Permitir | ✗ No |
+| Request con JWT inválido | ✗ Rechazar | ✗ No |
 
-Un proxy L4 ve ambos como bytes.
-No puede rechazar el JWT inválido.
-```
+*Un proxy L4 ve ambos como bytes opacos. No puede rechazar el JWT inválido.*
 
 ### 5.3 No Tiene Request-Level Metrics
 
-```
-L7 puede reportar:
-  - Requests por segundo
-  - Latencia por endpoint (/api/users vs /api/orders)
-  - Errores 5xx por path
-
-L4 solo puede reportar:
-  - Bytes por segundo
-  - Conexiones activas
-  - Latencia de conexión
-```
+| Métrica | L7 puede? | L4 puede? |
+|---------|-----------|-----------|
+| Requests por segundo | ✓ | ✗ |
+| Latencia por endpoint | ✓ | ✗ |
+| Errores 5xx por path | ✓ | ✗ |
+| Bytes por segundo | ✓ | ✓ |
+| Conexiones activas | ✓ | ✓ |
+| Latencia de conexión | ✓ | ✓ |
 
 ---
 

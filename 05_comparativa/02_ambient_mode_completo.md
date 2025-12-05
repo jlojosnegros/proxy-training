@@ -24,57 +24,37 @@ Al completar este documento:
 
 ### 1.1 Del Sidecar a Ambient
 
+**2017-2022: SIDECAR MODE**
+
+```mermaid
+flowchart LR
+    subgraph Sidecar["Sidecar Mode"]
+        subgraph PodA["Pod A"]
+            AppA["App"]
+            EnvoyA["Envoy"]
+        end
+        subgraph PodB["Pod B"]
+            AppB["App"]
+            EnvoyB["Envoy"]
+        end
+        PodA <--> PodB
+    end
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Evolución de Istio                           │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  2017-2022: SIDECAR MODE                                       │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                                                          │   │
-│  │  ┌──────────────────┐    ┌──────────────────┐           │   │
-│  │  │ Pod A            │    │ Pod B            │           │   │
-│  │  │ ┌────┐ ┌───────┐ │    │ ┌────┐ ┌───────┐ │           │   │
-│  │  │ │App │ │ Envoy │ │────│ │App │ │ Envoy │ │           │   │
-│  │  │ └────┘ └───────┘ │    │ └────┘ └───────┘ │           │   │
-│  │  └──────────────────┘    └──────────────────┘           │   │
-│  │                                                          │   │
-│  │  Características:                                        │   │
-│  │  • Un Envoy por pod                                      │   │
-│  │  • L4 + L7 siempre                                       │   │
-│  │  • Alto overhead de recursos                             │   │
-│  │  • Restart de pods para upgrades                         │   │
-│  │                                                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  2022+: AMBIENT MODE                                           │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                                                          │   │
-│  │  ┌────────────────────────────────────────────────────┐ │   │
-│  │  │                     ztunnel                         │ │   │
-│  │  │               (uno por nodo, L4)                    │ │   │
-│  │  └────────────────────────┬───────────────────────────┘ │   │
-│  │                           │                              │   │
-│  │       ┌───────────────────┼───────────────────┐         │   │
-│  │       ▼                   ▼                   ▼         │   │
-│  │  ┌─────────┐         ┌─────────┐         ┌─────────┐   │   │
-│  │  │ Pod A   │         │ Pod B   │         │ Pod C   │   │   │
-│  │  │ (solo   │         │ (solo   │         │ (solo   │   │   │
-│  │  │  app)   │         │  app)   │         │  app)   │   │   │
-│  │  └─────────┘         └─────────┘         └─────────┘   │   │
-│  │                                                          │   │
-│  │  + Waypoint (opcional, para L7)                         │   │
-│  │                                                          │   │
-│  │  Características:                                        │   │
-│  │  • Un ztunnel por nodo (no por pod)                     │   │
-│  │  • L4 siempre, L7 opcional                              │   │
-│  │  • Bajo overhead de recursos                            │   │
-│  │  • No restart de pods para upgrades                     │   │
-│  │                                                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+
+**Características:** Un Envoy por pod, L4 + L7 siempre, Alto overhead de recursos, Restart de pods para upgrades
+
+**2022+: AMBIENT MODE**
+
+```mermaid
+flowchart TB
+    subgraph Ambient["Ambient Mode"]
+        ZT["ztunnel (uno por nodo, L4)"]
+        ZT --> PA["Pod A (solo app)"] & PB["Pod B (solo app)"] & PC["Pod C (solo app)"]
+        WP["+ Waypoint (opcional, para L7)"]
+    end
 ```
+
+**Características:** Un ztunnel por nodo (no por pod), L4 siempre L7 opcional, Bajo overhead de recursos, No restart de pods para upgrades
 
 ### 1.2 Motivación de Ambient
 

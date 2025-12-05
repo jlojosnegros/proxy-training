@@ -24,61 +24,47 @@ Al completar este documento:
 
 ### 1.1 El Problema
 
+**Sin Hot Restart:**
+
+```mermaid
+flowchart LR
+    subgraph Problem["El Problema de Upgrade/Restart"]
+        V1a["1. Envoy v1 running"]
+        Kill["2. Kill v1"]
+        Down["DOWNTIME<br/>Conexiones perdidas<br/>Requests fallidos"]
+        V2a["3. Start v2"]
+
+        V1a --> Kill
+        Kill --> Down
+        Down --> V2a
+    end
+
+    style Down fill:#ff6b6b,color:#fff
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│               El Problema de Upgrade/Restart                    │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Sin Hot Restart:                                              │
-│                                                                 │
-│  1. Envoy v1 running ──────────────────────────────           │
-│                                                                 │
-│  2. Kill v1           ╔══════════════════════════╗            │
-│     ──────────────────║     DOWNTIME             ║            │
-│                       ║  Conexiones perdidas     ║            │
-│                       ║  Requests fallidos       ║            │
-│                       ╚══════════════════════════╝            │
-│                                                                 │
-│  3. Start v2          ──────────────────────────────           │
-│                                                                 │
-│  Problema: Durante el restart:                                 │
-│  • Conexiones activas se pierden                               │
-│  • Nuevas conexiones fallan                                    │
-│  • Requests in-flight se pierden                               │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+
+**Problema durante el restart:** Conexiones activas se pierden, nuevas conexiones fallan, requests in-flight se pierden
 
 ### 1.2 La Solución: Hot Restart
 
+```mermaid
+sequenceDiagram
+    participant V1 as Envoy v1
+    participant V2 as Envoy v2
+
+    Note over V1: 1. v1 running
+
+    V2->>V2: 2. Start v2 (parent)
+    Note over V1,V2: v1 sigue activo, v2 inicia
+
+    Note over V1: 3. Drain period<br/>(no new connections)
+    Note over V2: Accepting new connections
+
+    Note over V1: 4. v1 connections finish
+    V1->>V1: Terminates
+    Note over V2: Fully active
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Hot Restart                                │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1. Envoy v1 running ──────────────────────────────────────    │
-│                                                                 │
-│  2. Start v2 (parent)                                          │
-│     v1 sigue activo  ──────────────────────────────            │
-│     v2 inicia        ──────────────────────────────            │
-│                                                                 │
-│  3. Drain period                                               │
-│     v1: draining     ──────────────────────────────            │
-│         (no new connections)                                    │
-│     v2: accepting    ──────────────────────────────            │
-│         (new connections)                                       │
-│                                                                 │
-│  4. v1 connections finish                                      │
-│     v1: terminates   ──────                                    │
-│     v2: fully active ──────────────────────────────            │
-│                                                                 │
-│  Resultado:                                                    │
-│  • Zero downtime                                               │
-│  • Conexiones existentes terminan gracefully                   │
-│  • Nuevas conexiones van al nuevo proceso                      │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+
+**Resultado:** Zero downtime, conexiones existentes terminan gracefully, nuevas conexiones van al nuevo proceso
 
 ---
 

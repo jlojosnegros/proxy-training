@@ -42,40 +42,30 @@ Al completar este documento:
 
 ## 2. Framework de Decisión
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    ¿Qué proxy necesitas?                        │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-                            ▼
-        ┌───────────────────────────────────────┐
-        │ ¿Necesitas routing basado en          │
-        │ URL, headers, o contenido?            │
-        └───────────────────┬───────────────────┘
-                           │
-              ┌────────────┴────────────┐
-              │                         │
-              ▼ SÍ                      ▼ NO
-    ┌─────────────────┐      ┌─────────────────────────────┐
-    │ Usa Proxy L7    │      │ ¿Necesitas validar JWT,     │
-    │ (Envoy HCM)     │      │ OAuth, o API keys?          │
-    └─────────────────┘      └─────────────┬───────────────┘
-                                           │
-                              ┌────────────┴────────────┐
-                              │                         │
-                              ▼ SÍ                      ▼ NO
-                    ┌─────────────────┐      ┌─────────────────────┐
-                    │ Usa Proxy L7    │      │ ¿Solo necesitas     │
-                    │ (Envoy HCM)     │      │ mTLS y L4 auth?     │
-                    └─────────────────┘      └──────────┬──────────┘
-                                                        │
-                                              ┌─────────┴─────────┐
-                                              │                   │
-                                              ▼ SÍ                ▼ NO
-                                    ┌─────────────────┐  ┌─────────────────┐
-                                    │ Usa Proxy L4    │  │ Evalúa caso     │
-                                    │ (ztunnel)       │  │ específico      │
-                                    └─────────────────┘  └─────────────────┘
+```mermaid
+flowchart TB
+    Q1["¿Qué proxy necesitas?"]
+    Q2["¿Necesitas routing basado en<br/>URL, headers, o contenido?"]
+    Q3["¿Necesitas validar JWT,<br/>OAuth, o API keys?"]
+    Q4["¿Solo necesitas<br/>mTLS y L4 auth?"]
+
+    L7A["Usa Proxy L7<br/>(Envoy HCM)"]
+    L7B["Usa Proxy L7<br/>(Envoy HCM)"]
+    L4["Usa Proxy L4<br/>(ztunnel)"]
+    Eval["Evalúa caso<br/>específico"]
+
+    Q1 --> Q2
+    Q2 -->|"SÍ"| L7A
+    Q2 -->|"NO"| Q3
+    Q3 -->|"SÍ"| L7B
+    Q3 -->|"NO"| Q4
+    Q4 -->|"SÍ"| L4
+    Q4 -->|"NO"| Eval
+
+    style L7A fill:#4a9eff,color:#fff
+    style L7B fill:#4a9eff,color:#fff
+    style L4 fill:#10b981,color:#fff
+    style Eval fill:#f59e0b,color:#fff
 ```
 
 ---
@@ -161,47 +151,47 @@ Razones:
 
 Istio ambient combina lo mejor de ambos mundos:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Istio Ambient Mode                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   Capa L4 (siempre activa)                                     │
-│   ┌─────────────────────────────────────────────────────────┐  │
-│   │ ztunnel (node proxy)                                     │  │
-│   │                                                          │  │
-│   │ • mTLS automático                                        │  │
-│   │ • Identity (SPIFFE)                                      │  │
-│   │ • L4 authorization policies                              │  │
-│   │ • Basic telemetry (connections, bytes)                   │  │
-│   └─────────────────────────────────────────────────────────┘  │
-│                                                                 │
-│   Capa L7 (opcional, por namespace/servicio)                   │
-│   ┌─────────────────────────────────────────────────────────┐  │
-│   │ Waypoint Proxy (Envoy)                                   │  │
-│   │                                                          │  │
-│   │ • L7 authorization (path, headers)                       │  │
-│   │ • JWT validation                                         │  │
-│   │ • Rate limiting                                          │  │
-│   │ • Traffic management (retries, timeouts)                 │  │
-│   │ • Rich telemetry (per-path metrics)                      │  │
-│   └─────────────────────────────────────────────────────────┘  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Ambient["Istio Ambient Mode"]
+        subgraph L4Layer["Capa L4 (siempre activa)"]
+            ZT["ztunnel (node proxy)"]
+            ZTF["• mTLS automático<br/>• Identity (SPIFFE)<br/>• L4 authorization policies<br/>• Basic telemetry (connections, bytes)"]
+        end
+
+        subgraph L7Layer["Capa L7 (opcional, por namespace/servicio)"]
+            WP["Waypoint Proxy (Envoy)"]
+            WPF["• L7 authorization (path, headers)<br/>• JWT validation<br/>• Rate limiting<br/>• Traffic management (retries, timeouts)<br/>• Rich telemetry (per-path metrics)"]
+        end
+    end
+
+    style L4Layer fill:#10b981,color:#fff
+    style L7Layer fill:#4a9eff,color:#fff
 ```
 
 ### 4.1 Flujo de Tráfico en Ambient
 
+```mermaid
+flowchart LR
+    subgraph NoWaypoint["Sin Waypoint (~0.2ms adicional)"]
+        direction LR
+        PA1["Pod A"] --> ZA1["ztunnel A"]
+        ZA1 -->|"HBONE/mTLS"| ZB1["ztunnel B"]
+        ZB1 --> PB1["Pod B"]
+    end
 ```
-Pod A ──> ztunnel A ──> [Waypoint?] ──> ztunnel B ──> Pod B
 
-Sin Waypoint:
-  Pod A → ztunnel A → (HBONE/mTLS) → ztunnel B → Pod B
-  Latencia: ~0.2ms adicional
+```mermaid
+flowchart LR
+    subgraph WithWaypoint["Con Waypoint (~2-5ms adicional)"]
+        direction LR
+        PA2["Pod A"] --> ZA2["ztunnel A"]
+        ZA2 --> WP["Waypoint<br/>(L7 features)"]
+        WP --> ZB2["ztunnel B"]
+        ZB2 --> PB2["Pod B"]
+    end
 
-Con Waypoint:
-  Pod A → ztunnel A → Waypoint → ztunnel B → Pod B
-  Latencia: ~2-5ms adicional (pero con L7 features)
+    style WP fill:#4a9eff,color:#fff
 ```
 
 ### 4.2 Cuándo Usar Waypoint
@@ -221,63 +211,61 @@ Con Waypoint:
 
 ### 5.1 Memoria
 
-```
-Cluster: 100 pods, 10 nodos
+**Cluster: 100 pods, 10 nodos**
 
-Modelo Sidecar (L7):
-  100 Envoy sidecars × ~50MB = ~5GB RAM
+| Modelo | Componentes | RAM Total |
+|--------|-------------|-----------|
+| **Sidecar (L7)** | 100 Envoy sidecars × ~50MB | ~5GB |
+| **Ambient (L4)** | 10 ztunnels × ~30MB + Waypoints según necesidad | ~300MB + |
 
-Modelo Ambient (L4 + L7 donde se necesita):
-  10 ztunnels × ~30MB = ~300MB
-  + Waypoints según necesidad
-
-Ahorro: >90% para baseline
-```
+**Ahorro: >90% para baseline**
 
 ### 5.2 Latencia
 
-```
-Latencia P99 adicional:
+**Latencia P99 adicional:**
 
-Solo TCP proxy:        ~0.1ms
-ztunnel (HBONE):       ~0.2-0.5ms
-Envoy sidecar (L7):    ~1-3ms
-Waypoint (L7):         ~2-5ms
+| Componente | Latencia |
+|------------|----------|
+| Solo TCP proxy | ~0.1ms |
+| ztunnel (HBONE) | ~0.2-0.5ms |
+| Envoy sidecar (L7) | ~1-3ms |
+| Waypoint (L7) | ~2-5ms |
 
-Para servicios sensibles a latencia:
-  L4 puede ser la diferencia entre
-  cumplir o no un SLA de 10ms
-```
+> **Nota**: Para servicios sensibles a latencia, L4 puede ser la diferencia entre cumplir o no un SLA de 10ms.
 
 ---
 
 ## 6. Resumen de Decisión
 
-```
-┌───────────────────────────────────────────────────────────────┐
-│                     Guía Rápida                               │
-├───────────────────────────────────────────────────────────────┤
-│                                                               │
-│  Usa L4 (ztunnel) cuando:                                    │
-│  ✓ Solo necesitas mTLS                                       │
-│  ✓ Auth basado en identity (SPIFFE)                          │
-│  ✓ Protocolos no-HTTP                                        │
-│  ✓ Latencia es crítica                                       │
-│  ✓ Tienes muchos pods (escala)                               │
-│                                                               │
-│  Usa L7 (Envoy) cuando:                                      │
-│  ✓ Necesitas routing por URL/headers                         │
-│  ✓ JWT/OAuth validation                                      │
-│  ✓ Rate limiting granular                                    │
-│  ✓ Request/response transformation                           │
-│  ✓ Métricas por endpoint                                     │
-│                                                               │
-│  Usa híbrido (ztunnel + Waypoint) cuando:                    │
-│  ✓ Baseline de mTLS para todo                                │
-│  ✓ L7 solo para servicios que lo necesitan                   │
-│  ✓ Quieres optimizar recursos                                │
-│                                                               │
-└───────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Guide["Guía Rápida"]
+        subgraph L4Use["Usa L4 (ztunnel) cuando:"]
+            L4a["✓ Solo necesitas mTLS"]
+            L4b["✓ Auth basado en identity (SPIFFE)"]
+            L4c["✓ Protocolos no-HTTP"]
+            L4d["✓ Latencia es crítica"]
+            L4e["✓ Tienes muchos pods (escala)"]
+        end
+
+        subgraph L7Use["Usa L7 (Envoy) cuando:"]
+            L7a["✓ Necesitas routing por URL/headers"]
+            L7b["✓ JWT/OAuth validation"]
+            L7c["✓ Rate limiting granular"]
+            L7d["✓ Request/response transformation"]
+            L7e["✓ Métricas por endpoint"]
+        end
+
+        subgraph Hybrid["Usa híbrido (ztunnel + Waypoint) cuando:"]
+            Ha["✓ Baseline de mTLS para todo"]
+            Hb["✓ L7 solo para servicios que lo necesitan"]
+            Hc["✓ Quieres optimizar recursos"]
+        end
+    end
+
+    style L4Use fill:#10b981,color:#fff
+    style L7Use fill:#4a9eff,color:#fff
+    style Hybrid fill:#8b5cf6,color:#fff
 ```
 
 ---

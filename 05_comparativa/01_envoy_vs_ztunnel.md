@@ -24,28 +24,19 @@ Al completar este documento:
 
 ### 1.1 Propósito de Cada Proyecto
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Propósito Fundamental                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ENVOY:                                                        │
-│  "Universal data plane for cloud-native applications"          │
-│  ─────────────────────────────────────────────────────          │
-│  • Proxy L4/L7 de propósito general                            │
-│  • Altamente extensible y configurable                         │
-│  • Usado como sidecar, gateway, edge proxy                     │
-│  • Feature-rich: routing, observability, security              │
-│                                                                 │
-│  ZTUNNEL:                                                      │
-│  "Zero Trust Tunnel - purpose-built node proxy for ambient"    │
-│  ─────────────────────────────────────────────────────────      │
-│  • Proxy L4 especializado                                      │
-│  • Feature set intencionalmente limitado                       │
-│  • Usado solo como node proxy en ambient mode                  │
-│  • Enfocado: mTLS, identity, L4 auth, telemetry               │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Purpose["Propósito Fundamental"]
+        subgraph Envoy["ENVOY"]
+            E1["Universal data plane for cloud-native applications"]
+            E2["• Proxy L4/L7 de propósito general<br/>• Altamente extensible y configurable<br/>• Usado como sidecar, gateway, edge proxy<br/>• Feature-rich: routing, observability, security"]
+        end
+
+        subgraph Ztunnel["ZTUNNEL"]
+            Z1["Zero Trust Tunnel - purpose-built node proxy for ambient"]
+            Z2["• Proxy L4 especializado<br/>• Feature set intencionalmente limitado<br/>• Usado solo como node proxy en ambient mode<br/>• Enfocado: mTLS, identity, L4 auth, telemetry"]
+        end
+    end
 ```
 
 ### 1.2 Filosofía de Diseño
@@ -64,63 +55,33 @@ Al completar este documento:
 
 ### 2.1 Lenguaje y Runtime
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                  Stack Técnico                                  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ENVOY                           ZTUNNEL                        │
-│  ────────────────────────        ───────────────────────────    │
-│                                                                 │
-│  Lenguaje: C++20                 Lenguaje: Rust                 │
-│                                                                 │
-│  Event Loop: libevent            Runtime: Tokio                 │
-│  (callback-based)                (async/await)                  │
-│                                                                 │
-│  Threading:                      Threading:                     │
-│  • 1 main thread                 • 1 admin runtime (single-t)   │
-│  • N worker threads              • 1 worker runtime (multi-t)   │
-│  • Thread-local state            • Work-stealing scheduler      │
-│                                                                 │
-│  Memory:                         Memory:                        │
-│  • Manual management             • Ownership system             │
-│  • Arena allocators              • No GC, no manual mgmt        │
-│  • 50-100MB típico               • 20-50MB típico               │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Aspecto | ENVOY | ZTUNNEL |
+|---------|-------|---------|
+| **Lenguaje** | C++20 | Rust |
+| **Event Loop** | libevent (callback-based) | Tokio (async/await) |
+| **Threading** | 1 main thread, N worker threads, Thread-local state | 1 admin runtime (single-t), 1 worker runtime (multi-t), Work-stealing scheduler |
+| **Memory** | Manual management, Arena allocators, 50-100MB típico | Ownership system, No GC, no manual mgmt, 20-50MB típico |
 
 ### 2.2 Capas OSI
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Capas Soportadas                           │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│                        L7 (Application)                         │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  HTTP/1.1, HTTP/2, HTTP/3                               │   │
-│  │  gRPC, WebSocket                                         │   │
-│  │  Thrift, MongoDB, Redis, etc.                           │   │
-│  │                                                          │   │
-│  │  ✓ ENVOY     ✗ ztunnel                                  │   │
-│  │                                                          │   │
-│  │  Envoy parsea y entiende protocolos de aplicación       │   │
-│  │  ztunnel NO termina HTTP - bytes son opacos             │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│                        L4 (Transport)                           │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  TCP, UDP (limited)                                      │   │
-│  │  TLS/mTLS termination                                    │   │
-│  │                                                          │   │
-│  │  ✓ ENVOY     ✓ ztunnel                                  │   │
-│  │                                                          │   │
-│  │  Ambos pueden hacer proxy TCP                           │   │
-│  │  Ambos soportan mTLS                                    │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Layers["Capas Soportadas"]
+        subgraph L7["L7 (Application)"]
+            L7Proto["HTTP/1.1, HTTP/2, HTTP/3<br/>gRPC, WebSocket<br/>Thrift, MongoDB, Redis, etc."]
+            L7Support["✓ ENVOY     ✗ ztunnel"]
+            L7Note["Envoy parsea y entiende protocolos de aplicación<br/>ztunnel NO termina HTTP - bytes son opacos"]
+        end
+
+        subgraph L4["L4 (Transport)"]
+            L4Proto["TCP, UDP (limited)<br/>TLS/mTLS termination"]
+            L4Support["✓ ENVOY     ✓ ztunnel"]
+            L4Note["Ambos pueden hacer proxy TCP<br/>Ambos soportan mTLS"]
+        end
+    end
+
+    style L7 fill:#4a9eff,color:#fff
+    style L4 fill:#10b981,color:#fff
 ```
 
 ### 2.3 Features Detalladas
@@ -153,31 +114,17 @@ Al completar este documento:
 
 ### 3.1 Tamaño del Código
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Lines of Code (aproximado)                   │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ENVOY                                                         │
-│  ──────                                                         │
-│  source/: ~400,000+ líneas C++                                 │
-│  api/:    ~100,000+ líneas protobuf                            │
-│  test/:   ~300,000+ líneas                                     │
-│                                                                 │
-│  Extensiones: cientos de filters, clusters, etc.               │
-│                                                                 │
-│  ZTUNNEL                                                       │
-│  ────────                                                       │
-│  src/:    ~30,000 líneas Rust                                  │
-│                                                                 │
-│  Ratio: Envoy es ~15x más grande                               │
-│                                                                 │
-│  Por qué:                                                      │
-│  • Envoy: propósito general, muchas features                   │
-│  • ztunnel: propósito específico, features mínimas             │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Proyecto | Componente | Líneas de Código |
+|----------|------------|------------------|
+| **ENVOY** | source/ | ~400,000+ líneas C++ |
+| **ENVOY** | api/ | ~100,000+ líneas protobuf |
+| **ENVOY** | test/ | ~300,000+ líneas |
+| **ENVOY** | Extensiones | cientos de filters, clusters, etc. |
+| **ZTUNNEL** | src/ | ~30,000 líneas Rust |
+
+> **Ratio:** Envoy es ~15x más grande
+>
+> **Por qué:** Envoy es propósito general con muchas features; ztunnel es propósito específico con features mínimas.
 
 ### 3.2 Manejo de Conexión
 
@@ -301,39 +248,30 @@ static_resources:
 
 ### 4.1 Overhead
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Performance Comparison                       │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Latencia Añadida (aproximada):                                │
-│  ────────────────────────────────                               │
-│                                                                 │
-│  ENVOY (L7 mode):                                              │
-│  ┌──────────────────────────────────────────────┐              │
-│  │ HTTP parsing:      +0.1-0.5ms                │              │
-│  │ Filter chain:      +0.1-1.0ms (depende)      │              │
-│  │ Total típico:      +1-5ms per request        │              │
-│  └──────────────────────────────────────────────┘              │
-│                                                                 │
-│  ZTUNNEL (L4 only):                                            │
-│  ┌──────────────────────────────────────────────┐              │
-│  │ TCP proxy:         +0.05-0.1ms               │              │
-│  │ mTLS overhead:     +0.1-0.3ms (handshake)    │              │
-│  │ Total típico:      +0.1-0.5ms per connection │              │
-│  └──────────────────────────────────────────────┘              │
-│                                                                 │
-│  Memoria (por instancia):                                      │
-│  ─────────────────────────                                      │
-│  Envoy sidecar:  50-100MB                                      │
-│  ztunnel (nodo): 20-50MB (para todo el nodo)                   │
-│                                                                 │
-│  En cluster de 1000 pods:                                      │
-│  Sidecars Envoy: 50-100GB RAM total                            │
-│  ztunnel:        600MB-1.5GB (20-30 nodos)                     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Latencia Añadida (aproximada):**
+
+| Proxy | Componente | Latencia |
+|-------|------------|----------|
+| **ENVOY (L7)** | HTTP parsing | +0.1-0.5ms |
+| **ENVOY (L7)** | Filter chain | +0.1-1.0ms (depende) |
+| **ENVOY (L7)** | **Total típico** | **+1-5ms per request** |
+| **ZTUNNEL (L4)** | TCP proxy | +0.05-0.1ms |
+| **ZTUNNEL (L4)** | mTLS overhead | +0.1-0.3ms (handshake) |
+| **ZTUNNEL (L4)** | **Total típico** | **+0.1-0.5ms per connection** |
+
+**Memoria (por instancia):**
+
+| Configuración | Memoria |
+|---------------|---------|
+| Envoy sidecar | 50-100MB |
+| ztunnel (nodo) | 20-50MB (para todo el nodo) |
+
+**En cluster de 1000 pods:**
+
+| Modelo | RAM Total |
+|--------|-----------|
+| Sidecars Envoy | 50-100GB |
+| ztunnel (20-30 nodos) | 600MB-1.5GB |
 
 ### 4.2 Throughput
 
@@ -352,76 +290,30 @@ _Nota: Números ilustrativos, varían según hardware y configuración_
 
 ### 5.1 Envoy: Múltiples Patrones
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                   Envoy Deployment Patterns                     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1. SIDECAR (Service Mesh tradicional)                         │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  Pod                                                     │   │
-│  │  ┌─────────────────┐ ┌─────────────────┐                │   │
-│  │  │      App        │ │     Envoy       │                │   │
-│  │  │                 │ │    (sidecar)    │                │   │
-│  │  └─────────────────┘ └─────────────────┘                │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│  Usado en: Istio sidecar mode                                  │
-│                                                                 │
-│  2. GATEWAY (Ingress/Egress)                                   │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  Internet ──> Envoy Gateway ──> Services                │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│  Usado en: Istio Gateway, Contour, Ambassador                  │
-│                                                                 │
-│  3. EDGE PROXY                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  Front-facing load balancer                             │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│  Usado en: CDN, API Gateway                                    │
-│                                                                 │
-│  4. WAYPOINT (Ambient Mode)                                    │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  L7 processing por namespace/service                    │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│  Usado en: Istio ambient mode                                  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Patrón | Descripción | Usado en |
+|--------|-------------|----------|
+| **1. SIDECAR** | Pod: App + Envoy sidecar | Istio sidecar mode |
+| **2. GATEWAY** | Internet → Envoy Gateway → Services | Istio Gateway, Contour, Ambassador |
+| **3. EDGE PROXY** | Front-facing load balancer | CDN, API Gateway |
+| **4. WAYPOINT** | L7 processing por namespace/service | Istio ambient mode |
 
 ### 5.2 ztunnel: Un Solo Patrón
 
+**SOLO: Node Proxy (DaemonSet)**
+
+```mermaid
+flowchart TB
+    subgraph Node["Node"]
+        ZT["ztunnel (uno por nodo)"]
+        ZT --> PA["Pod A"] & PB["Pod B"] & PC["Pod C"]
+    end
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                   ztunnel Deployment Pattern                    │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  SOLO: Node Proxy (DaemonSet)                                  │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                         Node                             │   │
-│  │                                                          │   │
-│  │  ┌─────────────────────────────────────────────────┐    │   │
-│  │  │                    ztunnel                       │    │   │
-│  │  │              (uno por nodo)                      │    │   │
-│  │  └───────────────────────┬─────────────────────────┘    │   │
-│  │                          │                               │   │
-│  │      ┌───────────────────┼───────────────────┐          │   │
-│  │      │                   │                   │          │   │
-│  │      ▼                   ▼                   ▼          │   │
-│  │  ┌─────────┐        ┌─────────┐        ┌─────────┐     │   │
-│  │  │  Pod A  │        │  Pod B  │        │  Pod C  │     │   │
-│  │  └─────────┘        └─────────┘        └─────────┘     │   │
-│  │                                                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  ztunnel NO se usa como:                                       │
-│  ✗ Sidecar                                                     │
-│  ✗ Gateway                                                     │
-│  ✗ Edge proxy                                                  │
-│  ✗ Standalone proxy                                            │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+
+**ztunnel NO se usa como:**
+- ✗ Sidecar
+- ✗ Gateway
+- ✗ Edge proxy
+- ✗ Standalone proxy
 
 ---
 
@@ -526,40 +418,34 @@ _Nota: Números ilustrativos, varían según hardware y configuración_
 
 ### 7.3 Cuándo Usar Ambos (Ambient Mode)
 
+**Escenario:** Cluster con mix de requisitos
+
+- **Services A, B, C:** Solo necesitan mTLS → ztunnel es suficiente
+- **Service D (API pública):** Necesita JWT validation, rate limiting, routing → Añadir waypoint proxy (Envoy)
+
+```mermaid
+flowchart LR
+    subgraph L4Only["L4 Only (mTLS)"]
+        A1["A"] --> ZT1["ztunnel"] --> ZT2["ztunnel"] --> B["B"]
+    end
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│              Ambient Mode: ztunnel + Envoy Waypoint             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Escenario: Cluster con mix de requisitos                      │
-│                                                                 │
-│  Services A, B, C:                                             │
-│  Solo necesitan mTLS                                           │
-│  → ztunnel es suficiente                                       │
-│                                                                 │
-│  Service D (API pública):                                      │
-│  Necesita JWT validation, rate limiting, routing              │
-│  → Añadir waypoint proxy (Envoy) para namespace D              │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                                                          │   │
-│  │  [A] ─────> ztunnel ────────────────> ztunnel ────> [B]  │   │
-│  │                         L4 only                          │   │
-│  │                                                          │   │
-│  │  [A] ──> ztunnel ──> Waypoint ──> ztunnel ──> [D]       │   │
-│  │                L4       L7          L4                   │   │
-│  │              (mTLS)  (routing,   (mTLS)                  │   │
-│  │                       JWT, etc)                          │   │
-│  │                                                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  Beneficio:                                                    │
-│  • L7 solo donde se necesita                                   │
-│  • Menor uso de recursos                                       │
-│  • Flexibilidad por servicio                                   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+
+```mermaid
+flowchart LR
+    subgraph WithL7["Con Waypoint (L4 + L7)"]
+        A2["A"] -->|"L4 (mTLS)"| ZT3["ztunnel"]
+        ZT3 -->|"L7"| WP["Waypoint<br/>(routing, JWT, etc)"]
+        WP -->|"L4 (mTLS)"| ZT4["ztunnel"]
+        ZT4 --> D["D"]
+    end
+
+    style WP fill:#4a9eff,color:#fff
 ```
+
+**Beneficios:**
+- L7 solo donde se necesita
+- Menor uso de recursos
+- Flexibilidad por servicio
 
 ---
 

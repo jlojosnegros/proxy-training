@@ -26,16 +26,7 @@ Al completar este documento:
 
 **HBONE** (HTTP-Based Overlay Network Encapsulation) es el protocolo de túnel usado en Istio ambient mode:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      HBONE en una línea                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  "HTTP CONNECT tunnel, over mutual TLS with SPIFFE certs,      │
-│   on port 15008"                                                │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+> **HBONE en una línea:** "HTTP CONNECT tunnel, over mutual TLS with SPIFFE certs, on port 15008"
 
 ### 1.2 Componentes
 
@@ -52,37 +43,25 @@ Al completar este documento:
 
 ### 2.1 Flujo de Conexión
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    HBONE Connection Flow                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Pod A          ztunnel A         ztunnel B          Pod B      │
-│    │                │                  │                │       │
-│    │── TCP ────────>│                  │                │       │
-│    │  connect to    │                  │                │       │
-│    │  10.0.2.5:8080 │                  │                │       │
-│    │                │                  │                │       │
-│    │                │══ TLS Handshake ═╗                │       │
-│    │                │   (mTLS, SPIFFE) ║                │       │
-│    │                │<═════════════════╝                │       │
-│    │                │                  │                │       │
-│    │                │── HTTP/2 ───────>│                │       │
-│    │                │   CONNECT        │                │       │
-│    │                │   :authority =   │                │       │
-│    │                │   10.0.2.5:8080  │                │       │
-│    │                │                  │                │       │
-│    │                │<── 200 OK ───────│                │       │
-│    │                │                  │                │       │
-│    │                │                  │── TCP ────────>│       │
-│    │                │                  │   connect to   │       │
-│    │                │                  │   Pod B:8080   │       │
-│    │                │                  │                │       │
-│    │◄══════════════ Tunnel established ═══════════════►│       │
-│    │   Bytes flow bidirectionally through tunnel       │       │
-│    │                │                  │                │       │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    participant A as Pod A
+    participant ZA as ztunnel A
+    participant ZB as ztunnel B
+    participant B as Pod B
+
+    A->>ZA: TCP connect to 10.0.2.5:8080
+
+    ZA->>ZB: TLS Handshake (mTLS, SPIFFE)
+    ZB->>ZA: TLS Established
+
+    ZA->>ZB: HTTP/2 CONNECT<br/>:authority = 10.0.2.5:8080
+
+    ZB->>ZA: 200 OK
+
+    ZB->>B: TCP connect to Pod B:8080
+
+    Note over A,B: Tunnel established<br/>Bytes flow bidirectionally through tunnel
 ```
 
 ### 2.2 HTTP/2 CONNECT Request
@@ -124,24 +103,14 @@ spiffe://cluster.local/ns/default/sa/my-service
 
 ### 3.2 Certificado X.509 con SPIFFE
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    SPIFFE SVID Certificate                      │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Subject: O=cluster.local                                       │
-│                                                                 │
-│  Subject Alternative Names:                                     │
-│    URI: spiffe://cluster.local/ns/default/sa/my-service        │
-│                                                                 │
-│  Validity:                                                      │
-│    Not Before: Dec 04 10:00:00 2025 UTC                        │
-│    Not After:  Dec 04 22:00:00 2025 UTC  (típicamente 24h)     │
-│                                                                 │
-│  Issuer: spiffe://cluster.local                                 │
-│          (firmado por Istio CA / istiod)                        │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Cert["SPIFFE SVID Certificate"]
+        Subject["Subject: O=cluster.local"]
+        SAN["Subject Alternative Names:<br/>URI: spiffe://cluster.local/ns/default/sa/my-service"]
+        Validity["Validity:<br/>Not Before: Dec 04 10:00:00 2025 UTC<br/>Not After: Dec 04 22:00:00 2025 UTC (típicamente 24h)"]
+        Issuer["Issuer: spiffe://cluster.local<br/>(firmado por Istio CA / istiod)"]
+    end
 ```
 
 ### 3.3 mTLS Handshake
@@ -177,31 +146,19 @@ between workloads. The certificates will be of the actual
 user workloads, not Ztunnel's own identity."
 ```
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                   Certificate Management                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ztunnel mantiene certificados para CADA pod en el nodo:       │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ ztunnel certificate store                                │   │
-│  │                                                          │   │
-│  │ Pod A (ns/default/sa/frontend):                          │   │
-│  │   └── cert: spiffe://cluster.local/ns/default/sa/frontend│   │
-│  │                                                          │   │
-│  │ Pod B (ns/default/sa/backend):                           │   │
-│  │   └── cert: spiffe://cluster.local/ns/default/sa/backend │   │
-│  │                                                          │   │
-│  │ Pod C (ns/payments/sa/api):                              │   │
-│  │   └── cert: spiffe://cluster.local/ns/payments/sa/api    │   │
-│  │                                                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  Cuando Pod A hace outbound:                                    │
-│    → ztunnel usa el cert de Pod A, NO el de ztunnel            │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph CertMgmt["Certificate Management"]
+        Note1["ztunnel mantiene certificados para CADA pod en el nodo"]
+
+        subgraph CertStore["ztunnel certificate store"]
+            PodA["Pod A (ns/default/sa/frontend)<br/>cert: spiffe://cluster.local/ns/default/sa/frontend"]
+            PodB["Pod B (ns/default/sa/backend)<br/>cert: spiffe://cluster.local/ns/default/sa/backend"]
+            PodC["Pod C (ns/payments/sa/api)<br/>cert: spiffe://cluster.local/ns/payments/sa/api"]
+        end
+
+        Note2["Cuando Pod A hace outbound:<br/>→ ztunnel usa el cert de Pod A, NO el de ztunnel"]
+    end
 ```
 
 ---
@@ -210,38 +167,35 @@ user workloads, not Ztunnel's own identity."
 
 ### 4.1 Outbound (Pod A → Pod B)
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Outbound Flow                                │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1. App en Pod A hace: connect(10.0.2.5, 8080)                 │
-│                                                                 │
-│  2. iptables redirige a ztunnel:15001                          │
-│     (Pod A no sabe que hay redirección)                         │
-│                                                                 │
-│  3. ztunnel A:                                                  │
-│     a) Lee destino original (SO_ORIGINAL_DST)                  │
-│     b) Busca info del destino en xDS cache                     │
-│     c) Determina: Pod B está en nodo remoto                    │
-│     d) Obtiene cert SPIFFE de Pod A                            │
-│     e) Conecta a ztunnel B:15008                               │
-│     f) Hace TLS handshake con cert de Pod A                    │
-│     g) Envía CONNECT con :authority = 10.0.2.5:8080            │
-│                                                                 │
-│  4. ztunnel B:                                                  │
-│     a) Recibe conexión HBONE                                   │
-│     b) Valida cert de Pod A                                    │
-│     c) Parsea CONNECT, extrae destino                          │
-│     d) Conecta a Pod B:8080                                    │
-│     e) Responde 200 OK                                         │
-│                                                                 │
-│  5. Túnel establecido:                                         │
-│     Pod A ←→ ztunnel A ←→ ztunnel B ←→ Pod B                  │
-│                                                                 │
-│  6. Bytes fluyen transparentemente                              │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph OutboundFlow["Outbound Flow"]
+        S1["1. App en Pod A hace: connect(10.0.2.5, 8080)"]
+        S2["2. iptables redirige a ztunnel:15001<br/>(Pod A no sabe que hay redirección)"]
+
+        subgraph ZtunnelA["3. ztunnel A"]
+            A1["a) Lee destino original (SO_ORIGINAL_DST)"]
+            A2["b) Busca info del destino en xDS cache"]
+            A3["c) Determina: Pod B está en nodo remoto"]
+            A4["d) Obtiene cert SPIFFE de Pod A"]
+            A5["e) Conecta a ztunnel B:15008"]
+            A6["f) Hace TLS handshake con cert de Pod A"]
+            A7["g) Envía CONNECT con :authority = 10.0.2.5:8080"]
+        end
+
+        subgraph ZtunnelB["4. ztunnel B"]
+            B1["a) Recibe conexión HBONE"]
+            B2["b) Valida cert de Pod A"]
+            B3["c) Parsea CONNECT, extrae destino"]
+            B4["d) Conecta a Pod B:8080"]
+            B5["e) Responde 200 OK"]
+        end
+
+        S5["5. Túnel establecido:<br/>Pod A ←→ ztunnel A ←→ ztunnel B ←→ Pod B"]
+        S6["6. Bytes fluyen transparentemente"]
+
+        S1 --> S2 --> ZtunnelA --> ZtunnelB --> S5 --> S6
+    end
 ```
 
 ### 4.2 Encapsulación de Datos
@@ -286,33 +240,13 @@ Solo ve bytes que copia al túnel
 
 ### 5.2 Ventajas de HTTP/2 CONNECT
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                   Por qué HTTP/2 CONNECT                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1. ESTÁNDAR                                                    │
-│     RFC 7540 define CONNECT                                     │
-│     Interoperable con proxies HTTP existentes                   │
-│                                                                 │
-│  2. MULTIPLEXING                                                │
-│     Una conexión TCP, múltiples túneles                        │
-│     Reduce overhead de handshakes                               │
-│                                                                 │
-│  3. METADATA                                                    │
-│     Headers HTTP pueden llevar info extra                       │
-│     :authority indica destino                                   │
-│                                                                 │
-│  4. DEBUGGING                                                   │
-│     Wireshark, tcpdump entienden HTTP/2                        │
-│     Más fácil de debuggear que protocolo custom                │
-│                                                                 │
-│  5. COMPATIBILIDAD CON SIDECARS                                │
-│     Sidecars Envoy también pueden hablar HBONE                 │
-│     Ambient ↔ Sidecar interoperabilidad                        │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Ventaja | Descripción |
+|---------|-------------|
+| **1. ESTÁNDAR** | RFC 7540 define CONNECT. Interoperable con proxies HTTP existentes |
+| **2. MULTIPLEXING** | Una conexión TCP, múltiples túneles. Reduce overhead de handshakes |
+| **3. METADATA** | Headers HTTP pueden llevar info extra. `:authority` indica destino |
+| **4. DEBUGGING** | Wireshark, tcpdump entienden HTTP/2. Más fácil de debuggear |
+| **5. COMPATIBILIDAD CON SIDECARS** | Sidecars Envoy también pueden hablar HBONE. Ambient ↔ Sidecar interoperabilidad |
 
 ---
 

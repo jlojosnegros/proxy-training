@@ -26,27 +26,22 @@ Al completar este documento:
 
 El **OSI (Open Systems Interconnection)** es un modelo conceptual creado por la ISO que estandariza las funciones de un sistema de comunicaciones en **siete capas abstractas**. Cada capa tiene una responsabilidad específica y se comunica solo con las capas adyacentes.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    MODELO OSI                               │
-├─────────────────────────────────────────────────────────────┤
-│  Capa 7 │ Application  │ HTTP, gRPC, DNS     │ DATOS       │
-├─────────┼──────────────┼─────────────────────┼─────────────┤
-│  Capa 6 │ Presentation │ SSL/TLS, encoding   │ DATOS       │
-├─────────┼──────────────┼─────────────────────┼─────────────┤
-│  Capa 5 │ Session      │ Sesiones, sockets   │ DATOS       │
-├─────────┼──────────────┼─────────────────────┼─────────────┤
-│  Capa 4 │ Transport    │ TCP, UDP            │ SEGMENTOS   │  ← L4 Proxy
-├─────────┼──────────────┼─────────────────────┼─────────────┤
-│  Capa 3 │ Network      │ IP, ICMP            │ PAQUETES    │
-├─────────┼──────────────┼─────────────────────┼─────────────┤
-│  Capa 2 │ Data Link    │ Ethernet, MAC       │ FRAMES      │
-├─────────┼──────────────┼─────────────────────┼─────────────┤
-│  Capa 1 │ Physical     │ Cables, señales     │ BITS        │
-└─────────────────────────────────────────────────────────────┘
-                                                    ↑
-                                              L7 Proxy opera
-                                              en Application
+```mermaid
+block-beta
+    columns 4
+
+    block:title:4
+        columns 1
+        t["MODELO OSI"]
+    end
+
+    c7["Capa 7"] app["Application"] proto7["HTTP, gRPC, DNS"] data7["DATOS ← L7 Proxy"]
+    c6["Capa 6"] pres["Presentation"] proto6["SSL/TLS, encoding"] data6["DATOS"]
+    c5["Capa 5"] sess["Session"] proto5["Sesiones, sockets"] data5["DATOS"]
+    c4["Capa 4"] trans["Transport"] proto4["TCP, UDP"] data4["SEGMENTOS ← L4 Proxy"]
+    c3["Capa 3"] net["Network"] proto3["IP, ICMP"] data3["PAQUETES"]
+    c2["Capa 2"] link["Data Link"] proto2["Ethernet, MAC"] data2["FRAMES"]
+    c1["Capa 1"] phys["Physical"] proto1["Cables, señales"] data1["BITS"]
 ```
 
 ### 1.2 ¿Por Qué Importa para Proxies?
@@ -76,18 +71,20 @@ Los proxies se clasifican por la capa OSI en la que operan:
 
 **Estructura de un paquete IP**:
 
-```
-┌──────────────────────────────────────────────────────────┐
-│ IP Header                                                │
-├────────────┬────────────┬────────────────────────────────┤
-│ Version    │ TTL        │ Protocol (TCP=6, UDP=17)       │
-├────────────┴────────────┼────────────────────────────────┤
-│ Source IP Address       │ 10.0.1.5                       │
-├─────────────────────────┼────────────────────────────────┤
-│ Destination IP Address  │ 10.0.2.10                      │
-├─────────────────────────┴────────────────────────────────┤
-│ Payload (TCP/UDP segment)                                │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+block-beta
+    columns 2
+
+    block:header:2
+        columns 1
+        h["IP Header"]
+    end
+
+    v["Version"] ttl["TTL"]
+    proto["Protocol (TCP=6, UDP=17)"]:2
+    src["Source IP Address"] srcval["10.0.1.5"]
+    dst["Destination IP Address"] dstval["10.0.2.10"]
+    payload["Payload (TCP/UDP segment)"]:2
 ```
 
 **Relevancia para proxies**:
@@ -108,36 +105,35 @@ Los proxies se clasifican por la capa OSI en la que operan:
 
 **Estructura de un segmento TCP**:
 
-```
-┌──────────────────────────────────────────────────────────┐
-│ TCP Header                                               │
-├────────────────────────┬─────────────────────────────────┤
-│ Source Port            │ 45678                           │
-├────────────────────────┼─────────────────────────────────┤
-│ Destination Port       │ 80 (HTTP) / 443 (HTTPS)         │
-├────────────────────────┼─────────────────────────────────┤
-│ Sequence Number        │ Para ordenar segmentos          │
-├────────────────────────┼─────────────────────────────────┤
-│ Acknowledgment Number  │ Confirma recepción              │
-├────────────────────────┼─────────────────────────────────┤
-│ Flags                  │ SYN, ACK, FIN, RST, etc.        │
-├────────────────────────┴─────────────────────────────────┤
-│ Payload (HTTP request/response, etc.)                    │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+block-beta
+    columns 2
+
+    block:header:2
+        columns 1
+        h["TCP Header"]
+    end
+
+    sp["Source Port"] spval["45678"]
+    dp["Destination Port"] dpval["80 (HTTP) / 443 (HTTPS)"]
+    seq["Sequence Number"] seqval["Para ordenar segmentos"]
+    ack["Acknowledgment Number"] ackval["Confirma recepción"]
+    flags["Flags"] flagsval["SYN, ACK, FIN, RST, etc."]
+    payload["Payload (HTTP request/response, etc.)"]:2
 ```
 
 **El TCP Handshake (Three-Way Handshake)**:
 
-```
-Client                                          Server
-  │                                               │
-  │─────────── SYN (seq=x) ─────────────────────>│
-  │                                               │
-  │<────────── SYN-ACK (seq=y, ack=x+1) ─────────│
-  │                                               │
-  │─────────── ACK (ack=y+1) ───────────────────>│
-  │                                               │
-  │           Conexión establecida                │
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as Server
+
+    C->>S: SYN (seq=x)
+    S->>C: SYN-ACK (seq=y, ack=x+1)
+    C->>S: ACK (ack=y+1)
+
+    Note over C,S: Conexión establecida
 ```
 
 **Relevancia para proxies**:
@@ -187,32 +183,25 @@ Content-Length: 45
 
 Cuando una aplicación envía datos, cada capa añade su propia cabecera (header):
 
-```
-Application Layer:
-┌─────────────────────────────────────────────┐
-│ HTTP Request: GET /users                    │
-└─────────────────────────────────────────────┘
-                    │
-                    ▼
-Transport Layer (TCP):
-┌─────────────┬───────────────────────────────┐
-│ TCP Header  │ HTTP Request: GET /users      │
-│ Port 80     │                               │
-└─────────────┴───────────────────────────────┘
-                    │
-                    ▼
-Network Layer (IP):
-┌────────────┬─────────────┬──────────────────┐
-│ IP Header  │ TCP Header  │ HTTP Request     │
-│ 10.0.1.5   │ Port 80     │ GET /users       │
-└────────────┴─────────────┴──────────────────┘
-                    │
-                    ▼
-Data Link Layer (Ethernet):
-┌──────────────┬────────────┬─────────────┬──────────────┬─────────┐
-│ Eth Header   │ IP Header  │ TCP Header  │ HTTP Request │ Eth FCS │
-│ MAC address  │            │             │              │         │
-└──────────────┴────────────┴─────────────┴──────────────┴─────────┘
+```mermaid
+flowchart TB
+    subgraph L7["Application Layer"]
+        http["HTTP Request: GET /users"]
+    end
+
+    subgraph L4["Transport Layer (TCP)"]
+        tcp["TCP Header<br/>Port 80"] --- httpL4["HTTP Request: GET /users"]
+    end
+
+    subgraph L3["Network Layer (IP)"]
+        ip["IP Header<br/>10.0.1.5"] --- tcpL3["TCP Header<br/>Port 80"] --- httpL3["HTTP Request<br/>GET /users"]
+    end
+
+    subgraph L2["Data Link Layer (Ethernet)"]
+        eth["Eth Header<br/>MAC address"] --- ipL2["IP Header"] --- tcpL2["TCP Header"] --- httpL2["HTTP Request"] --- fcs["Eth FCS"]
+    end
+
+    L7 --> L4 --> L3 --> L2
 ```
 
 ### 3.2 Decapsulación
@@ -230,21 +219,26 @@ El receptor hace el proceso inverso, quitando headers capa por capa hasta llegar
 
 En la práctica, se usa más el modelo TCP/IP que combina algunas capas:
 
-```
-┌─────────────────────┬─────────────────────┐
-│     OSI Model       │    TCP/IP Model     │
-├─────────────────────┼─────────────────────┤
-│ 7. Application      │                     │
-│ 6. Presentation     │  Application Layer  │
-│ 5. Session          │                     │
-├─────────────────────┼─────────────────────┤
-│ 4. Transport        │  Transport Layer    │
-├─────────────────────┼─────────────────────┤
-│ 3. Network          │  Internet Layer     │
-├─────────────────────┼─────────────────────┤
-│ 2. Data Link        │  Network Access     │
-│ 1. Physical         │  Layer              │
-└─────────────────────┴─────────────────────┘
+```mermaid
+block-beta
+    columns 2
+
+    osi["OSI Model"] tcpip["TCP/IP Model"]
+    o7["7. Application"] space:1
+    o6["6. Presentation"] app["Application Layer"]
+    o5["5. Session"] space:1
+    o4["4. Transport"] trans["Transport Layer"]
+    o3["3. Network"] inet["Internet Layer"]
+    o2["2. Data Link"] space:1
+    o1["1. Physical"] netacc["Network Access Layer"]
+
+    o7 --> app
+    o6 --> app
+    o5 --> app
+    o4 --> trans
+    o3 --> inet
+    o2 --> netacc
+    o1 --> netacc
 ```
 
 **En el contexto de proxies**, usamos la terminología OSI:
@@ -260,60 +254,95 @@ En la práctica, se usa más el modelo TCP/IP que combina algunas capas:
 
 ztunnel opera en **Layer 4**:
 
-```
-Incoming packet:
-┌────────────┬─────────────┬──────────────────┐
-│ IP Header  │ TCP Header  │ Encrypted TLS    │
-│ Src: A     │ Port: 8080  │ payload (opaque) │
-│ Dst: B     │             │                  │
-└────────────┴─────────────┴──────────────────┘
-       │             │              │
-       │             │              └── ztunnel NO lee esto
-       └─────────────┴── ztunnel PUEDE ver esto
+```mermaid
+block-beta
+    columns 3
 
-Decisiones que puede tomar:
-✓ Forward basado en IP destino
-✓ mTLS entre pods
-✓ Autorización basada en identidad (SPIFFE)
-✗ NO puede hacer routing por URL path
-✗ NO puede leer HTTP headers
+    block:title:3
+        columns 1
+        t["Incoming packet"]
+    end
+
+    ip["IP Header<br/>Src: A, Dst: B"] tcp["TCP Header<br/>Port: 8080"] tls["Encrypted TLS<br/>payload (opaque)"]
+
+    block:visible:2
+        columns 1
+        v["✓ ztunnel PUEDE ver esto"]
+    end
+    block:hidden:1
+        columns 1
+        h["✗ ztunnel NO lee esto"]
+    end
 ```
+
+**Decisiones que puede tomar:**
+- ✓ Forward basado en IP destino
+- ✓ mTLS entre pods
+- ✓ Autorización basada en identidad (SPIFFE)
+- ✗ NO puede hacer routing por URL path
+- ✗ NO puede leer HTTP headers
 
 ### 5.2 Envoy (L7)
 
 Envoy opera en **Layer 7**:
 
-```
-Incoming packet (after TLS termination):
-┌────────────────────────────────────────────┐
-│ HTTP Request                               │
-│ GET /api/v1/users HTTP/1.1                 │
-│ Host: api.example.com                      │
-│ Authorization: Bearer eyJhbG...            │
-│ X-Request-ID: abc-123                      │
-└────────────────────────────────────────────┘
-       │
-       └── Envoy PUEDE ver todo esto
+```mermaid
+block-beta
+    columns 1
 
-Decisiones que puede tomar:
-✓ Route /api/v1/* → cluster-v1
-✓ Route /api/v2/* → cluster-v2
-✓ Validate JWT token
-✓ Add/modify headers
-✓ Rate limit by user
-✓ Load balance by header hash
+    block:title
+        columns 1
+        t["Incoming packet (after TLS termination)"]
+    end
+
+    block:request
+        columns 1
+        r1["HTTP Request"]
+        r2["GET /api/v1/users HTTP/1.1"]
+        r3["Host: api.example.com"]
+        r4["Authorization: Bearer eyJhbG..."]
+        r5["X-Request-ID: abc-123"]
+    end
+
+    block:visible
+        columns 1
+        v["✓ Envoy PUEDE ver todo esto"]
+    end
 ```
+
+**Decisiones que puede tomar:**
+- ✓ Route /api/v1/* → cluster-v1
+- ✓ Route /api/v2/* → cluster-v2
+- ✓ Validate JWT token
+- ✓ Add/modify headers
+- ✓ Rate limit by user
+- ✓ Load balance by header hash
 
 ### 5.3 Cómo Trabajan Juntos (Ambient Mode)
 
-```
-┌─────────┐     L4      ┌─────────────┐    L7 (si se necesita)   ┌─────────────┐     L4      ┌─────────┐
-│  Pod A  │────────────>│  ztunnel A  │─────────────────────────>│   Waypoint  │────────────>│ ztunnel B│───────>│ Pod B │
-│         │  plaintext  │   (node)    │       HBONE/mTLS         │   (Envoy)   │  HBONE/mTLS │  (node)  │        │       │
-└─────────┘             └─────────────┘                          └─────────────┘             └──────────┘        └───────┘
-                              │                                         │
-                              │ Solo ve: IP, Port                       │ Ve: HTTP headers, path, etc.
-                              │ Hace: mTLS, L4 auth                     │ Hace: L7 routing, auth, etc.
+```mermaid
+flowchart LR
+    subgraph NodeA["Node A"]
+        PodA["Pod A"]
+        ZtA["ztunnel A<br/>(L4)"]
+    end
+
+    subgraph Waypoint["Waypoint (optional)"]
+        WP["Envoy<br/>(L7)"]
+    end
+
+    subgraph NodeB["Node B"]
+        ZtB["ztunnel B<br/>(L4)"]
+        PodB["Pod B"]
+    end
+
+    PodA -->|plaintext| ZtA
+    ZtA -->|HBONE/mTLS| WP
+    WP -->|HBONE/mTLS| ZtB
+    ZtB -->|plaintext| PodB
+
+    ZtA -.-|"Solo ve: IP, Port<br/>Hace: mTLS, L4 auth"| ZtA
+    WP -.-|"Ve: HTTP headers, path<br/>Hace: L7 routing, auth"| WP
 ```
 
 ---

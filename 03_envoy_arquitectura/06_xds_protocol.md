@@ -34,33 +34,27 @@ Configuración estática tiene limitaciones:
 
 xDS (x Discovery Service) es un conjunto de APIs para configuración dinámica:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Control Plane                               │
-│            (Istio, Consul, custom server)                       │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  │
-│  │   LDS   │ │   RDS   │ │   CDS   │ │   EDS   │ │   SDS   │  │
-│  │Listeners│ │ Routes  │ │Clusters │ │Endpoints│ │ Secrets │  │
-│  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘  │
-│       │          │          │          │          │           │
-└───────┼──────────┼──────────┼──────────┼──────────┼───────────┘
-        │          │          │          │          │
-        │          │   gRPC streaming (bi-directional)           │
-        │          │          │          │          │
-        ▼          ▼          ▼          ▼          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         Envoy                                   │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  │
-│  │Listener │ │  Route  │ │ Cluster │ │Endpoints│ │  Certs  │  │
-│  │ Config  │ │ Config  │ │ Config  │ │  List   │ │  Store  │  │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘  │
-│                                                                 │
-│  Configuración actualizada sin restart                         │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph ControlPlane["Control Plane (Istio, Consul, custom server)"]
+        LDS["LDS<br/>Listeners"]
+        RDS["RDS<br/>Routes"]
+        CDS["CDS<br/>Clusters"]
+        EDS["EDS<br/>Endpoints"]
+        SDS["SDS<br/>Secrets"]
+    end
+
+    LDS & RDS & CDS & EDS & SDS -->|"gRPC streaming<br/>(bi-directional)"| Envoy
+
+    subgraph Envoy["Envoy"]
+        LC["Listener Config"]
+        RC["Route Config"]
+        CC["Cluster Config"]
+        EL["Endpoints List"]
+        CS["Certs Store"]
+
+        Note["Configuración actualizada sin restart"]
+    end
 ```
 
 ---
@@ -83,25 +77,16 @@ xDS (x Discovery Service) es un conjunto de APIs para configuración dinámica:
 
 ### 2.2 Orden de Dependencias
 
-```
-                    LDS
-                     │
-                     ▼
-               ┌─────────┐
-               │   RDS   │ (referenciado por listener)
-               └────┬────┘
-                    │
-                    ▼
-               ┌─────────┐
-               │   CDS   │ (referenciado por routes)
-               └────┬────┘
-                    │
-                    ▼
-               ┌─────────┐
-               │   EDS   │ (referenciado por clusters)
-               └─────────┘
+```mermaid
+flowchart TB
+    LDS["LDS"]
+    RDS["RDS<br/>(referenciado por listener)"]
+    CDS["CDS<br/>(referenciado por routes)"]
+    EDS["EDS<br/>(referenciado por clusters)"]
 
-Un listener necesita rutas → rutas necesitan clusters → clusters necesitan endpoints
+    LDS --> RDS --> CDS --> EDS
+
+    Note["Un listener necesita rutas → rutas necesitan clusters → clusters necesitan endpoints"]
 ```
 
 ---
@@ -125,34 +110,22 @@ service AggregatedDiscoveryService {
 
 ### 3.2 Flujo de Request/Response
 
-```
-Envoy                                          Control Plane
-  │                                                  │
-  │───── DiscoveryRequest ──────────────────────────>│
-  │      type_url: "type.googleapis.com/...Listener" │
-  │      node: { id: "envoy-1", cluster: "..." }     │
-  │      resource_names: []  (wildcard)              │
-  │                                                  │
-  │<──── DiscoveryResponse ─────────────────────────│
-  │      version_info: "v1"                          │
-  │      resources: [Listener1, Listener2]           │
-  │      nonce: "abc123"                             │
-  │                                                  │
-  │───── DiscoveryRequest (ACK) ────────────────────>│
-  │      version_info: "v1"                          │
-  │      response_nonce: "abc123"                    │
-  │      (sin error_detail = ACK)                    │
-  │                                                  │
-  │      ... tiempo pasa ...                         │
-  │                                                  │
-  │<──── DiscoveryResponse (update) ────────────────│
-  │      version_info: "v2"                          │
-  │      resources: [Listener1, Listener2, Listener3]│
-  │      nonce: "def456"                             │
-  │                                                  │
-  │───── DiscoveryRequest (ACK) ────────────────────>│
-  │      version_info: "v2"                          │
-  │      response_nonce: "def456"                    │
+```mermaid
+sequenceDiagram
+    participant E as Envoy
+    participant CP as Control Plane
+
+    E->>CP: DiscoveryRequest<br/>type_url: Listener<br/>node: {id: envoy-1}<br/>resource_names: [] (wildcard)
+
+    CP->>E: DiscoveryResponse<br/>version_info: v1<br/>resources: [Listener1, Listener2]<br/>nonce: abc123
+
+    E->>CP: DiscoveryRequest (ACK)<br/>version_info: v1<br/>response_nonce: abc123<br/>(sin error_detail = ACK)
+
+    Note over E,CP: ... tiempo pasa ...
+
+    CP->>E: DiscoveryResponse (update)<br/>version_info: v2<br/>resources: [Listener1, Listener2, Listener3]<br/>nonce: def456
+
+    E->>CP: DiscoveryRequest (ACK)<br/>version_info: v2<br/>response_nonce: def456
 ```
 
 ### 3.3 ACK vs NACK
@@ -210,22 +183,19 @@ dynamic_resources:
 
 ### 4.2 Orden de Entrega con ADS
 
-```
-Control Plane envía en orden:
+```mermaid
+flowchart TB
+    subgraph Order["Control Plane envía en orden"]
+        S1["1. CDS (clusters primero)"] --> A1["Envoy crea cluster objects"]
+        A1 --> S2["2. EDS (endpoints para clusters)"]
+        S2 --> A2["Envoy llena endpoints"]
+        A2 --> S3["3. LDS (listeners)"]
+        S3 --> A3["Envoy crea listeners"]
+        A3 --> S4["4. RDS (routes para listeners)"]
+        S4 --> A4["Envoy activa rutas"]
+    end
 
-1. CDS (clusters primero)
-   └─► Envoy crea cluster objects
-
-2. EDS (endpoints para clusters)
-   └─► Envoy llena endpoints
-
-3. LDS (listeners)
-   └─► Envoy crea listeners
-
-4. RDS (routes para listeners)
-   └─► Envoy activa rutas
-
-Esto evita referencias a clusters/rutas que no existen
+    Note["Esto evita referencias a clusters/rutas que no existen"]
 ```
 
 ---
@@ -350,32 +320,19 @@ message Listener {
 
 ### 7.1 Arquitectura
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         istiod                                  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌────────────────┐    ┌────────────────┐    ┌───────────────┐ │
-│  │ Config Store   │    │ Service        │    │ Certificate   │ │
-│  │ (K8s API)      │    │ Discovery      │    │ Authority     │ │
-│  └───────┬────────┘    └───────┬────────┘    └───────┬───────┘ │
-│          │                     │                     │          │
-│          └─────────────────────┼─────────────────────┘          │
-│                                │                                │
-│                       ┌────────┴────────┐                       │
-│                       │    xDS Server   │                       │
-│                       │   (port 15010)  │                       │
-│                       └────────┬────────┘                       │
-│                                │                                │
-└────────────────────────────────┼────────────────────────────────┘
-                                 │
-              ┌──────────────────┼──────────────────┐
-              │                  │                  │
-              ▼                  ▼                  ▼
-        ┌──────────┐      ┌──────────┐      ┌──────────┐
-        │  Envoy   │      │  Envoy   │      │ ztunnel  │
-        │ (sidecar)│      │(waypoint)│      │  (node)  │
-        └──────────┘      └──────────┘      └──────────┘
+```mermaid
+flowchart TB
+    subgraph Istiod["istiod"]
+        CS["Config Store<br/>(K8s API)"]
+        SD["Service<br/>Discovery"]
+        CA["Certificate<br/>Authority"]
+
+        CS & SD & CA --> XDS["xDS Server<br/>(port 15010)"]
+    end
+
+    XDS --> Sidecar["Envoy<br/>(sidecar)"]
+    XDS --> Waypoint["Envoy<br/>(waypoint)"]
+    XDS --> Ztunnel["ztunnel<br/>(node)"]
 ```
 
 ### 7.2 Lo que Istio Envía
@@ -462,15 +419,10 @@ istioctl proxy-config endpoint <pod-name>
 
 ### 9.1 State of the World vs Delta
 
-```
-State of the World (SotW):
-  Cada response contiene TODOS los recursos
-  - Simple pero ineficiente para updates pequeños
-
-Delta xDS:
-  Solo envía cambios (added, removed, updated)
-  - Más eficiente para clusters grandes
-```
+| Modo | Descripción | Uso |
+|------|-------------|-----|
+| **State of the World (SotW)** | Cada response contiene TODOS los recursos | Simple pero ineficiente para updates pequeños |
+| **Delta xDS** | Solo envía cambios (added, removed, updated) | Más eficiente para clusters grandes |
 
 ### 9.2 Delta Request
 

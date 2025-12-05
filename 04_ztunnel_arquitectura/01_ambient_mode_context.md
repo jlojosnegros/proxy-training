@@ -24,31 +24,31 @@ Al completar este documento:
 
 ### 1.1 Modelo Sidecar Tradicional
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Modelo Sidecar                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Node 1                                                         │
-│  ┌─────────────────────┐  ┌─────────────────────┐              │
-│  │ Pod A               │  │ Pod B               │              │
-│  │ ┌─────┐ ┌─────────┐ │  │ ┌─────┐ ┌─────────┐ │              │
-│  │ │ App │ │  Envoy  │ │  │ │ App │ │  Envoy  │ │              │
-│  │ │     │ │ Sidecar │ │  │ │     │ │ Sidecar │ │              │
-│  │ └─────┘ └─────────┘ │  │ └─────┘ └─────────┘ │              │
-│  └─────────────────────┘  └─────────────────────┘              │
-│                                                                 │
-│  ┌─────────────────────┐  ┌─────────────────────┐              │
-│  │ Pod C               │  │ Pod D               │              │
-│  │ ┌─────┐ ┌─────────┐ │  │ ┌─────┐ ┌─────────┐ │              │
-│  │ │ App │ │  Envoy  │ │  │ │ App │ │  Envoy  │ │              │
-│  │ │     │ │ Sidecar │ │  │ │     │ │ Sidecar │ │              │
-│  │ └─────┘ └─────────┘ │  │ └─────┘ └─────────┘ │              │
-│  └─────────────────────┘  └─────────────────────┘              │
-│                                                                 │
-│  4 pods = 4 sidecars Envoy                                     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Node1["Node 1 - Modelo Sidecar"]
+        subgraph PodA["Pod A"]
+            AppA["App"]
+            SidecarA["Envoy Sidecar"]
+        end
+
+        subgraph PodB["Pod B"]
+            AppB["App"]
+            SidecarB["Envoy Sidecar"]
+        end
+
+        subgraph PodC["Pod C"]
+            AppC["App"]
+            SidecarC["Envoy Sidecar"]
+        end
+
+        subgraph PodD["Pod D"]
+            AppD["App"]
+            SidecarD["Envoy Sidecar"]
+        end
+    end
+
+    Note["4 pods = 4 sidecars Envoy"]
 ```
 
 ### 1.2 Problemas del Modelo Sidecar
@@ -78,40 +78,24 @@ La respuesta: **No**. Muchos solo necesitan:
 
 ### 2.1 Arquitectura de Dos Capas
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Ambient Mode Architecture                    │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  LAYER 7 (cuando se necesita)                                  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                     Waypoint Proxy                       │   │
-│  │                      (Envoy)                             │   │
-│  │                                                          │   │
-│  │  • L7 routing, policies                                  │   │
-│  │  • JWT validation                                        │   │
-│  │  • Rate limiting                                         │   │
-│  │  • Traffic management                                    │   │
-│  │  • OPCIONAL - solo donde se necesita                     │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                              ▲                                  │
-│                              │                                  │
-│  ─────────────────────────────────────────────────────────────  │
-│                              │                                  │
-│                              ▼                                  │
-│  LAYER 4 (siempre activo)                                      │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                       ztunnel                            │   │
-│  │                    (Node Proxy)                          │   │
-│  │                                                          │   │
-│  │  • mTLS automático                                       │   │
-│  │  • Identity (SPIFFE)                                     │   │
-│  │  • L4 authorization                                      │   │
-│  │  • Telemetry                                             │   │
-│  │  • SIEMPRE presente en cada nodo                         │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Ambient["Ambient Mode Architecture"]
+        subgraph L7Layer["LAYER 7 (cuando se necesita)"]
+            Waypoint["Waypoint Proxy (Envoy)"]
+            L7Features["• L7 routing, policies<br/>• JWT validation<br/>• Rate limiting<br/>• Traffic management<br/>• OPCIONAL - solo donde se necesita"]
+        end
+
+        subgraph L4Layer["LAYER 4 (siempre activo)"]
+            Ztunnel["ztunnel (Node Proxy)"]
+            L4Features["• mTLS automático<br/>• Identity (SPIFFE)<br/>• L4 authorization<br/>• Telemetry<br/>• SIEMPRE presente en cada nodo"]
+        end
+
+        L7Layer <--> L4Layer
+    end
+
+    style L7Layer fill:#4a9eff,color:#fff
+    style L4Layer fill:#10b981,color:#fff
 ```
 
 ### 2.2 Comparación
@@ -142,24 +126,15 @@ keeping a narrow feature set."
 
 ### 3.2 Características Clave
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        ztunnel Features                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ✓ Incluido (In Scope)            ✗ Excluido (Out of Scope)   │
-│  ─────────────────────────────    ───────────────────────────  │
-│  • mTLS between workloads         • HTTP traffic termination   │
-│  • SPIFFE identity                • HTTP traffic termination   │
-│  • L4 authorization               • (repeated for emphasis!)   │
-│  • L4 telemetry                   • Generic extensibility      │
-│  • HBONE tunneling                • WASM, Lua, ext_authz       │
-│                                                                 │
-│  "Ztunnel does not aim to be a generic extensible proxy;       │
-│   Envoy is better suited for that task."                        │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| ✓ Incluido (In Scope) | ✗ Excluido (Out of Scope) |
+|----------------------|---------------------------|
+| mTLS between workloads | HTTP traffic termination |
+| SPIFFE identity | Generic extensibility |
+| L4 authorization | WASM, Lua, ext_authz |
+| L4 telemetry | |
+| HBONE tunneling | |
+
+> "Ztunnel does not aim to be a generic extensible proxy; Envoy is better suited for that task."
 
 ### 3.3 Por qué Rust
 
@@ -204,68 +179,49 @@ spec:
 
 ### 4.2 Flujo de Tráfico
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Node                                    │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                      ztunnel                             │   │
-│  │                                                          │   │
-│  │  Inbound:                  Outbound:                     │   │
-│  │  ┌──────────────┐          ┌──────────────┐             │   │
-│  │  │ Port 15008   │          │ Port 15001   │             │   │
-│  │  │ (HBONE in)   │          │ (capture)    │             │   │
-│  │  └──────────────┘          └──────────────┘             │   │
-│  │                                                          │   │
-│  │  ┌──────────────┐                                       │   │
-│  │  │ Port 15006   │                                       │   │
-│  │  │ (plaintext)  │                                       │   │
-│  │  └──────────────┘                                       │   │
-│  └───────────────────────────┬─────────────────────────────┘   │
-│                              │                                  │
-│            ┌─────────────────┼─────────────────┐               │
-│            │                 │                 │               │
-│            ▼                 ▼                 ▼               │
-│       ┌─────────┐       ┌─────────┐       ┌─────────┐         │
-│       │  Pod A  │       │  Pod B  │       │  Pod C  │         │
-│       │  (app)  │       │  (app)  │       │  (app)  │         │
-│       └─────────┘       └─────────┘       └─────────┘         │
-│                                                                 │
-│       Las apps no saben que hay un proxy                       │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Node["Node"]
+        subgraph ZT["ztunnel"]
+            subgraph Ports["Ports"]
+                P15008["Port 15008<br/>(HBONE in)"]
+                P15001["Port 15001<br/>(capture)"]
+                P15006["Port 15006<br/>(plaintext)"]
+            end
+        end
+
+        ZT --> PodA & PodB & PodC
+
+        PodA["Pod A (app)"]
+        PodB["Pod B (app)"]
+        PodC["Pod C (app)"]
+
+        Note["Las apps no saben que hay un proxy"]
+    end
 ```
 
 ### 4.3 HBONE Protocol
 
 HBONE (HTTP-Based Overlay Network Encapsulation):
 
+**Formato:**
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      HBONE Tunnel                               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Formato:                                                       │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ HTTP/2 CONNECT request                                   │   │
-│  │ :method = CONNECT                                        │   │
-│  │ :authority = 10.0.1.5:8080 (destino real)               │   │
-│  │ :protocol = connect-tcp                                  │   │
-│  │                                                          │   │
-│  │ Sobre mTLS con certificados SPIFFE                       │   │
-│  │ Puerto 15008                                             │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  Flujo:                                                         │
-│                                                                 │
-│  Pod A ────────> ztunnel A ════════════════> ztunnel B ───> Pod B
-│         plaintext         HBONE/mTLS:15008          plaintext  │
-│                                                                 │
-│  El túnel HBONE transporta bytes opacos                        │
-│  ztunnel NO parsea HTTP del usuario                            │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+HTTP/2 CONNECT request
+:method = CONNECT
+:authority = 10.0.1.5:8080 (destino real)
+:protocol = connect-tcp
+
+Sobre mTLS con certificados SPIFFE
+Puerto 15008
+```
+
+```mermaid
+flowchart LR
+    PodA["Pod A"] -->|"plaintext"| ZTA["ztunnel A"]
+    ZTA -->|"HBONE/mTLS:15008"| ZTB["ztunnel B"]
+    ZTB -->|"plaintext"| PodB["Pod B"]
+
+    Note["El túnel HBONE transporta bytes opacos<br/>ztunnel NO parsea HTTP del usuario"]
 ```
 
 ---
@@ -288,27 +244,18 @@ HBONE (HTTP-Based Overlay Network Encapsulation):
 
 ### 5.2 Cuándo Usar Cada Uno
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Decision Tree                                │
-└─────────────────────────────┬───────────────────────────────────┘
-                              │
-                              ▼
-              ┌───────────────────────────────────┐
-              │ ¿Necesitas features L7?           │
-              │ (routing por path, JWT, etc.)     │
-              └───────────────────┬───────────────┘
-                                  │
-                    ┌─────────────┴─────────────┐
-                    │                           │
-                    ▼ SÍ                        ▼ NO
-          ┌─────────────────┐         ┌─────────────────┐
-          │ Usa Waypoint    │         │ Solo ztunnel    │
-          │ (Envoy)         │         │ es suficiente   │
-          │                 │         │                 │
-          │ L7 por servicio │         │ L4 para todo    │
-          │ o namespace     │         │                 │
-          └─────────────────┘         └─────────────────┘
+```mermaid
+flowchart TB
+    Start["Decision Tree"]
+    Q1["¿Necesitas features L7?<br/>(routing por path, JWT, etc.)"]
+
+    Start --> Q1
+
+    Q1 -->|"SÍ"| Waypoint["Usa Waypoint (Envoy)<br/>L7 por servicio o namespace"]
+    Q1 -->|"NO"| Ztunnel["Solo ztunnel es suficiente<br/>L4 para todo"]
+
+    style Waypoint fill:#4a9eff,color:#fff
+    style Ztunnel fill:#10b981,color:#fff
 ```
 
 ---

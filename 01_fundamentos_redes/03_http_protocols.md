@@ -24,22 +24,31 @@ Al completar este documento:
 
 ### 1.1 Estructura de un Request
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Request Line                                                │
-│ GET /api/users?limit=10 HTTP/1.1                           │
-├─────────────────────────────────────────────────────────────┤
-│ Headers                                                     │
-│ Host: api.example.com                                       │
-│ User-Agent: curl/7.68.0                                     │
-│ Accept: application/json                                    │
-│ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9 │
-│ Content-Type: application/json                              │
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│ Body (opcional)                                             │
-│ {"filter": "active"}                                        │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+block-beta
+    columns 1
+
+    block:reqline
+        columns 1
+        rl["Request Line"]
+        req["GET /api/users?limit=10 HTTP/1.1"]
+    end
+
+    block:headers
+        columns 1
+        hdr["Headers"]
+        h1["Host: api.example.com"]
+        h2["User-Agent: curl/7.68.0"]
+        h3["Accept: application/json"]
+        h4["Authorization: Bearer eyJhbG..."]
+        h5["Content-Type: application/json"]
+    end
+
+    block:body
+        columns 1
+        bd["Body (opcional)"]
+        data['{"filter": "active"}']
+    end
 ```
 
 **Componentes**:
@@ -52,22 +61,31 @@ Al completar este documento:
 
 ### 1.2 Estructura de un Response
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Status Line                                                 │
-│ HTTP/1.1 200 OK                                            │
-├─────────────────────────────────────────────────────────────┤
-│ Headers                                                     │
-│ Content-Type: application/json                              │
-│ Content-Length: 156                                         │
-│ Date: Thu, 04 Dec 2025 10:30:00 GMT                        │
-│ Server: envoy                                               │
-│ X-Request-Id: abc-123-def                                  │
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│ Body                                                        │
-│ [{"id": 1, "name": "John"}, {"id": 2, "name": "Jane"}]     │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+block-beta
+    columns 1
+
+    block:statusline
+        columns 1
+        sl["Status Line"]
+        status["HTTP/1.1 200 OK"]
+    end
+
+    block:headers
+        columns 1
+        hdr["Headers"]
+        h1["Content-Type: application/json"]
+        h2["Content-Length: 156"]
+        h3["Date: Thu, 04 Dec 2025 10:30:00 GMT"]
+        h4["Server: envoy"]
+        h5["X-Request-Id: abc-123-def"]
+    end
+
+    block:body
+        columns 1
+        bd["Body"]
+        data["[{\"id\": 1, \"name\": \"John\"}, {\"id\": 2, \"name\": \"Jane\"}]"]
+    end
 ```
 
 **Status Codes Comunes**:
@@ -89,20 +107,21 @@ Al completar este documento:
 
 **Head-of-Line Blocking**:
 
-```
-Conexión TCP única:
-┌───────────────────────────────────────────────────────────┐
-│ Request 1 ─────────────────> │                            │
-│                              │ Response 1 ◄───────────────│
-│ Request 2 ─────────────────> │                            │
-│                              │ Response 2 ◄───────────────│
-│ Request 3 ─────────────────> │                            │
-│                              │ Response 3 ◄───────────────│
-└───────────────────────────────────────────────────────────┘
-     │                              │
-     └──────────────────────────────┘
-       Las requests deben esperar
-       en orden (head-of-line blocking)
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant S as Servidor
+
+    Note over C,S: Conexión TCP única
+
+    C->>S: Request 1
+    S->>C: Response 1
+    C->>S: Request 2
+    S->>C: Response 2
+    C->>S: Request 3
+    S->>C: Response 3
+
+    Note over C,S: Las requests deben esperar<br/>en orden (head-of-line blocking)
 ```
 
 **Soluciones en HTTP/1.1**:
@@ -146,59 +165,60 @@ GET /page2 HTTP/1.1
 
 **Frame**: Unidad mínima de comunicación
 
-```
-┌──────────────────────────────────────────┐
-│ Frame Header (9 bytes)                   │
-├────────────────┬─────────────────────────┤
-│ Length (24b)   │ Tamaño del payload      │
-├────────────────┼─────────────────────────┤
-│ Type (8b)      │ HEADERS, DATA, etc.     │
-├────────────────┼─────────────────────────┤
-│ Flags (8b)     │ END_STREAM, etc.        │
-├────────────────┼─────────────────────────┤
-│ Stream ID (31b)│ Identifica el stream    │
-├────────────────┴─────────────────────────┤
-│ Payload                                  │
-└──────────────────────────────────────────┘
+```mermaid
+block-beta
+    columns 2
+
+    block:header:2
+        columns 1
+        h["Frame Header (9 bytes)"]
+    end
+
+    len["Length (24b)"] lenval["Tamaño del payload"]
+    type["Type (8b)"] typeval["HEADERS, DATA, etc."]
+    flags["Flags (8b)"] flagsval["END_STREAM, etc."]
+    stream["Stream ID (31b)"] streamval["Identifica el stream"]
+    payload["Payload"]:2
 ```
 
 **Stream**: Secuencia bidireccional de frames dentro de una conexión
 
-```
-Conexión HTTP/2
-┌───────────────────────────────────────────────────────────┐
-│                                                           │
-│  Stream 1: ═══════════════════════════════════════>       │
-│            Request 1        Response 1                    │
-│                                                           │
-│  Stream 3: ═══════════════════════════════════════>       │
-│            Request 2        Response 2                    │
-│                                                           │
-│  Stream 5: ═══════════════════════════════════════>       │
-│            Request 3        Response 3                    │
-│                                                           │
-└───────────────────────────────────────────────────────────┘
-        │
-        └── Una sola conexión TCP, múltiples streams
-            paralelos (IDs impares para cliente)
+```mermaid
+flowchart LR
+    subgraph HTTP2["Conexión HTTP/2"]
+        direction TB
+        subgraph S1["Stream 1"]
+            R1["Request 1"] --> Resp1["Response 1"]
+        end
+        subgraph S3["Stream 3"]
+            R2["Request 2"] --> Resp2["Response 2"]
+        end
+        subgraph S5["Stream 5"]
+            R3["Request 3"] --> Resp3["Response 3"]
+        end
+    end
+
+    Note["Una sola conexión TCP<br/>múltiples streams paralelos<br/>(IDs impares para cliente)"]
 ```
 
 ### 2.3 Multiplexing en Detalle
 
-```
-HTTP/1.1 (secuencial):
-────────────────────────────────────────────────────>
-  [Req1][        ][Resp1][Req2][        ][Resp2][Req3]...
-                 tiempo ──────────────────────────────>
+```mermaid
+flowchart TB
+    subgraph HTTP11["HTTP/1.1 (secuencial)"]
+        direction LR
+        A1["Req1"] --> A2["wait"] --> A3["Resp1"] --> A4["Req2"] --> A5["wait"] --> A6["Resp2"]
+    end
 
-HTTP/2 (multiplexado):
-────────────────────────────────────────────────────>
-  [R1][R2][R3][Resp1][Resp3][Resp2]
-  │   │   │     │      │      │
-  └───┴───┴─────┴──────┴──────┘
-   Requests y responses intercalados
-   en la misma conexión
+    subgraph HTTP2["HTTP/2 (multiplexado)"]
+        direction LR
+        B1["R1"] --> B2["R2"] --> B3["R3"] --> B4["Resp1"] --> B5["Resp3"] --> B6["Resp2"]
+    end
+
+    HTTP11 --> HTTP2
 ```
+
+*Requests y responses intercalados en la misma conexión*
 
 **Beneficio**: Si Response 1 es lento, Response 2 y 3 pueden llegar antes.
 
@@ -256,18 +276,19 @@ gRPC es un framework RPC (Remote Procedure Call) que usa:
 - **HTTP/2** como transporte
 - **Protocol Buffers** (protobuf) para serialización
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                     gRPC Stack                           │
-├──────────────────────────────────────────────────────────┤
-│  Aplicación: GetUser(UserRequest) → UserResponse         │
-├──────────────────────────────────────────────────────────┤
-│  Serialización: Protocol Buffers (binario)               │
-├──────────────────────────────────────────────────────────┤
-│  Transporte: HTTP/2 (streams, multiplexing)             │
-├──────────────────────────────────────────────────────────┤
-│  Red: TCP (TLS opcional)                                 │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+block-beta
+    columns 1
+
+    block:title
+        columns 1
+        t["gRPC Stack"]
+    end
+
+    app["Aplicación: GetUser(UserRequest) → UserResponse"]
+    serial["Serialización: Protocol Buffers (binario)"]
+    transport["Transporte: HTTP/2 (streams, multiplexing)"]
+    network["Red: TCP (TLS opcional)"]
 ```
 
 ### 3.2 Definición de Servicio (.proto)
@@ -333,29 +354,34 @@ grpc-message:
 
 ### 3.4 Tipos de RPC en gRPC
 
-```
-Unary RPC:
-Client ──── Request ────> Server
-       <─── Response ────
+```mermaid
+flowchart TB
+    subgraph Unary["Unary RPC"]
+        direction LR
+        U1["Client"] -->|Request| U2["Server"]
+        U2 -->|Response| U1
+    end
 
-Server Streaming:
-Client ──── Request ────> Server
-       <─── Response 1 ──
-       <─── Response 2 ──
-       <─── Response N ──
+    subgraph ServerStream["Server Streaming"]
+        direction LR
+        SS1["Client"] -->|Request| SS2["Server"]
+        SS2 -->|Response 1| SS1
+        SS2 -->|Response 2| SS1
+        SS2 -->|Response N| SS1
+    end
 
-Client Streaming:
-Client ──── Request 1 ──> Server
-       ──── Request 2 ──>
-       ──── Request N ──>
-       <─── Response ────
+    subgraph ClientStream["Client Streaming"]
+        direction LR
+        CS1["Client"] -->|Request 1| CS2["Server"]
+        CS1 -->|Request 2| CS2
+        CS1 -->|Request N| CS2
+        CS2 -->|Response| CS1
+    end
 
-Bidirectional Streaming:
-Client ──── Request 1 ──> Server
-       <─── Response 1 ──
-       ──── Request 2 ──>
-       <─── Response 2 ──
-       ...
+    subgraph Bidi["Bidirectional Streaming"]
+        direction LR
+        B1["Client"] <-->|Request/Response| B2["Server"]
+    end
 ```
 
 ---
@@ -444,13 +470,15 @@ content-type: application/grpc
 
 HTTP/2 todavía tiene head-of-line blocking a nivel TCP:
 
-```
-HTTP/2 sobre TCP:
-Stream 1: [Frame1]────────────────[Frame3]
-Stream 2: [Frame2]─────█──────────[Frame4]
-                       │
-                   Pérdida de paquete TCP
-                   Bloquea TODOS los streams
+```mermaid
+flowchart LR
+    subgraph TCP["HTTP/2 sobre TCP"]
+        direction LR
+        S1["Stream 1: Frame1"] --> X["❌ Pérdida<br/>de paquete"] --> S1b["Frame3"]
+        S2["Stream 2: Frame2"] --> X --> S2b["Frame4"]
+    end
+
+    Note["Pérdida de paquete TCP<br/>Bloquea TODOS los streams"]
 ```
 
 ### 5.2 QUIC
@@ -461,12 +489,19 @@ QUIC es un protocolo de transporte sobre UDP que:
 - Integra TLS 1.3
 - Tiene 0-RTT connection establishment
 
-```
-QUIC:
-Stream 1: [Frame1]────────────────[Frame3]  ✓ Llega
-Stream 2: [Frame2]─────█──────────[Frame4]  Solo stream 2 espera
-                       │
-                   Pérdida solo afecta a stream 2
+```mermaid
+flowchart LR
+    subgraph QUIC["QUIC"]
+        direction TB
+        subgraph S1["Stream 1"]
+            F1["Frame1"] --> F3["Frame3 ✓ Llega"]
+        end
+        subgraph S2["Stream 2"]
+            F2["Frame2"] --> X["❌ Pérdida"] --> F4["Frame4"]
+        end
+    end
+
+    Note["Pérdida solo afecta a stream 2<br/>Stream 1 continúa sin bloqueo"]
 ```
 
 **En Envoy**:

@@ -26,27 +26,23 @@ Al completar este documento:
 
 Un **proxy** es un intermediario que actúa en nombre de otro. En redes, un proxy de red es un servidor que recibe requests de clientes y los reenvía a servidores destino:
 
-```
-Sin proxy:
-┌────────┐                                      ┌────────┐
-│ Client │──────────── Request ────────────────>│ Server │
-│        │<──────────── Response ───────────────│        │
-└────────┘                                      └────────┘
+```mermaid
+flowchart LR
+    subgraph NoProxy["Sin proxy"]
+        C1["Client"] <-->|Request/Response| S1["Server"]
+    end
 
-
-Con proxy:
-┌────────┐        ┌─────────┐        ┌────────┐
-│ Client │───────>│  Proxy  │───────>│ Server │
-│        │<───────│         │<───────│        │
-└────────┘        └─────────┘        └────────┘
-                       │
-                       │ El proxy puede:
-                       │ - Inspeccionar tráfico
-                       │ - Modificar requests/responses
-                       │ - Cachear contenido
-                       │ - Aplicar políticas
-                       │ - Agregar observabilidad
+    subgraph WithProxy["Con proxy"]
+        C2["Client"] <--> P["Proxy"] <--> S2["Server"]
+    end
 ```
+
+**El proxy puede:**
+- Inspeccionar tráfico
+- Modificar requests/responses
+- Cachear contenido
+- Aplicar políticas
+- Agregar observabilidad
 
 ### 1.2 ¿Por Qué Usar un Proxy?
 
@@ -67,27 +63,19 @@ Con proxy:
 
 El cliente conoce el proxy y lo configura explícitamente:
 
+```mermaid
+flowchart LR
+    subgraph Forward["Forward Proxy"]
+        C["Client<br/>config: proxy=:8080"] --> P["Proxy"]
+        P --> I["internet.com<br/>api.external.com<br/>any server"]
+    end
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Forward Proxy                           │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌────────┐      ┌─────────┐      ┌────────────────────┐   │
-│  │ Client │─────>│  Proxy  │─────>│ internet.com       │   │
-│  │        │      │         │      │ api.external.com   │   │
-│  │ config:│      │         │      │ any server         │   │
-│  │ proxy= │      │         │      │                    │   │
-│  │ :8080  │      │         │      │                    │   │
-│  └────────┘      └─────────┘      └────────────────────┘   │
-│                       │                                     │
-│                       │ Casos de uso:                       │
-│                       │ - Filtrado de contenido             │
-│                       │ - Control de acceso a internet      │
-│                       │ - Anonimizar origen                 │
-│                       │ - Caché corporativo                 │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+
+**Casos de uso:**
+- Filtrado de contenido
+- Control de acceso a internet
+- Anonimizar origen
+- Caché corporativo
 
 **Ejemplos**: Squid, Proxy corporativo
 
@@ -95,30 +83,22 @@ El cliente conoce el proxy y lo configura explícitamente:
 
 Los clientes no saben que hay un proxy; creen hablar directamente con el servidor:
 
+```mermaid
+flowchart LR
+    subgraph Reverse["Reverse Proxy"]
+        C["Client<br/>request to:<br/>api.example.com"] --> P["Proxy<br/>api.example.com"]
+        P --> B1["Backend 1"]
+        P --> B2["Backend 2"]
+        P --> B3["Backend 3"]
+    end
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Reverse Proxy                           │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌────────┐      ┌─────────┐      ┌────────────────────┐   │
-│  │ Client │─────>│  Proxy  │─────>│ Backend 1          │   │
-│  │        │      │         │      ├────────────────────┤   │
-│  │ request│      │  api.   │      │ Backend 2          │   │
-│  │ to:    │      │ example │      ├────────────────────┤   │
-│  │ api.   │      │  .com   │      │ Backend 3          │   │
-│  │ example│      │         │      │                    │   │
-│  │ .com   │      │         │      │                    │   │
-│  └────────┘      └─────────┘      └────────────────────┘   │
-│                       │                                     │
-│                       │ Casos de uso:                       │
-│                       │ - Load balancing                    │
-│                       │ - SSL termination                   │
-│                       │ - API Gateway                       │
-│                       │ - Proteger backends                 │
-│                       │ - Service Mesh sidecar              │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+
+**Casos de uso:**
+- Load balancing
+- SSL termination
+- API Gateway
+- Proteger backends
+- Service Mesh sidecar
 
 **Ejemplos**: Nginx, HAProxy, Envoy, ztunnel
 
@@ -128,32 +108,25 @@ Los clientes no saben que hay un proxy; creen hablar directamente con el servido
 
 El tráfico se redirige al proxy sin que el cliente lo sepa o configure:
 
+```mermaid
+flowchart LR
+    subgraph Transparent["Transparent Proxy"]
+        C["Client<br/>to: 10.0.2.5:80"] -->|Request| IPT["iptables<br/>redirect"]
+        IPT --> P["Proxy"]
+        P --> S["Server<br/>10.0.2.5:80"]
+        S --> P
+        P --> C
+    end
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                   Transparent Proxy                         │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌────────┐                          ┌────────────────────┐ │
-│  │ Client │──── Request ────────────>│ Server             │ │
-│  │        │         │                │ 10.0.2.5:80        │ │
-│  │ to:    │         │                │                    │ │
-│  │ 10.0.  │         ▼ iptables       │                    │ │
-│  │ 2.5:80 │    ┌─────────┐           │                    │ │
-│  │        │    │  Proxy  │───────────│                    │ │
-│  │        │<───│         │<──────────│                    │ │
-│  └────────┘    └─────────┘           └────────────────────┘ │
-│                     │                                       │
-│                     │ Mecanismo:                            │
-│                     │ - iptables/netfilter                  │
-│                     │ - TPROXY                              │
-│                     │ - Network namespace manipulation       │
-│                     │                                       │
-│                     │ Usado por:                            │
-│                     │ - ztunnel (Istio ambient)             │
-│                     │ - Istio sidecar (iptables redirect)   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+
+**Mecanismo:**
+- iptables/netfilter
+- TPROXY
+- Network namespace manipulation
+
+**Usado por:**
+- ztunnel (Istio ambient)
+- Istio sidecar (iptables redirect)
 
 **ztunnel usa transparent proxying**:
 
@@ -173,18 +146,20 @@ Las reglas iptables redirigen el tráfico de los pods al ztunnel sin que los pod
 
 Cada pod tiene su propio proxy sidecar:
 
+```mermaid
+flowchart LR
+    subgraph PodA["Pod A"]
+        AppA["App"] --> EA["Envoy Sidecar"]
+    end
+
+    subgraph PodB["Pod B"]
+        EB["Envoy Sidecar"] --> AppB["App"]
+    end
+
+    EA <-->|mTLS| EB
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ Pod A                                    Pod B                    │
-├───────────────────────────────┬──────────────────────────────────┤
-│ ┌───────────┐  ┌───────────┐ │ ┌───────────┐  ┌───────────┐     │
-│ │    App    │  │   Envoy   │ │ │   Envoy   │  │    App    │     │
-│ │           │──│  Sidecar  │─┼─│  Sidecar  │──│           │     │
-│ └───────────┘  └───────────┘ │ └───────────┘  └───────────┘     │
-│                              │                                   │
-│ localhost:8080→localhost:15001│                                 │
-└──────────────────────────────┴──────────────────────────────────┘
-```
+
+*localhost:8080 → localhost:15001*
 
 **Ventajas**:
 
@@ -200,22 +175,16 @@ Cada pod tiene su propio proxy sidecar:
 
 Un proxy por nodo para todos los pods:
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│ Node                                                              │
-├──────────────────────────────────────────────────────────────────┤
-│  ┌────────────────────┐                                          │
-│  │      ztunnel       │  ← Un proxy por nodo                    │
-│  │   (node proxy)     │                                          │
-│  └─────────┬──────────┘                                          │
-│            │                                                      │
-│    ┌───────┼───────┐                                             │
-│    │       │       │                                             │
-│    ▼       ▼       ▼                                             │
-│ ┌─────┐ ┌─────┐ ┌─────┐                                         │
-│ │Pod A│ │Pod B│ │Pod C│  ← Sin sidecars                         │
-│ └─────┘ └─────┘ └─────┘                                         │
-└──────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Node["Node"]
+        ZT["ztunnel<br/>(node proxy)<br/>← Un proxy por nodo"]
+        ZT --> PA["Pod A"]
+        ZT --> PB["Pod B"]
+        ZT --> PC["Pod C"]
+    end
+
+    Note["← Sin sidecars"]
 ```
 
 **Ventajas**:
@@ -235,21 +204,13 @@ Un proxy por nodo para todos los pods:
 
 Distribuir tráfico entre múltiples backends:
 
-```
-                    ┌───────────────────┐
-                    │     Backends      │
-                    ├───────────────────┤
-                 ┌──│ Backend 1 (25%)   │
-                 │  ├───────────────────┤
-┌────────┐       │  │ Backend 2 (25%)   │
-│ Client │──────>┼──├───────────────────┤
-└────────┘       │  │ Backend 3 (25%)   │
-     │           │  ├───────────────────┤
-     │           └──│ Backend 4 (25%)   │
-     │              └───────────────────┘
-     │
-   Proxy
-   selecciona
+```mermaid
+flowchart LR
+    C["Client"] --> P["Proxy<br/>(selecciona)"]
+    P -->|25%| B1["Backend 1"]
+    P -->|25%| B2["Backend 2"]
+    P -->|25%| B3["Backend 3"]
+    P -->|25%| B4["Backend 4"]
 ```
 
 **Algoritmos**:
@@ -270,13 +231,14 @@ source/common/upstream/load_balancer_impl.cc
 
 Verificar que los backends estén sanos:
 
+```mermaid
+flowchart LR
+    P["Proxy"] -->|Health Check| B1["Backend 1: ✓ Healthy"]
+    P -->|Health Check| B2["Backend 2: ✗ Unhealthy<br/>(excluido)"]
+    P -->|Health Check| B3["Backend 3: ✓ Healthy"]
 ```
-Proxy ─────── Health Check ─────────> Backend 1: ✓ Healthy
-      ─────── Health Check ─────────> Backend 2: ✗ Unhealthy (excluido)
-      ─────── Health Check ─────────> Backend 3: ✓ Healthy
 
-Tráfico solo va a 1 y 3
-```
+*Tráfico solo va a 1 y 3*
 
 **Tipos**:
 
@@ -293,23 +255,18 @@ source/common/upstream/health_checker_impl.cc
 
 Proteger backends sobrecargados:
 
-```
-Estado: CLOSED               Estado: OPEN              Estado: HALF-OPEN
-(funcionando)                (fallos excedidos)        (probando)
+```mermaid
+stateDiagram-v2
+    [*] --> CLOSED
 
-┌─────────────┐              ┌─────────────┐           ┌─────────────┐
-│ Proxy envía │              │ Proxy corta │           │ Proxy envía │
-│ requests    │──errores────>│ tráfico     │──timer───>│ 1 request   │
-│             │  >threshold  │ devuelve 503│           │ de prueba   │
-└─────────────┘              └─────────────┘           └──────┬──────┘
-                                    │                         │
-                                    │                    éxito│fallo
-                                    │                         │
-                                    │            ┌────────────┴───┐
-                                    │            │                │
-                                    │            ▼                ▼
-                                    │       CLOSED            OPEN
-                                    └────────────────────────────────
+    CLOSED: Proxy envía requests<br/>(funcionando)
+    OPEN: Proxy corta tráfico<br/>devuelve 503<br/>(fallos excedidos)
+    HALF_OPEN: Proxy envía 1 request<br/>de prueba<br/>(probando)
+
+    CLOSED --> OPEN : errores > threshold
+    OPEN --> HALF_OPEN : timer
+    HALF_OPEN --> CLOSED : éxito
+    HALF_OPEN --> OPEN : fallo
 ```
 
 ### 4.4 Retry y Timeout
@@ -331,56 +288,39 @@ route_config:
 
 ### 4.5 Observabilidad
 
-```
-┌────────────┐
-│   Client   │
-└─────┬──────┘
-      │
-      ▼
-┌─────────────────────────────────────────────────────┐
-│                      Proxy                          │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐          │
-│  │ Metrics  │  │  Logs    │  │  Traces  │          │
-│  │          │  │          │  │          │          │
-│  │ latency  │  │ access   │  │ span_id  │          │
-│  │ rps      │  │ logs     │  │ trace_id │          │
-│  │ errors   │  │          │  │          │          │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘          │
-│       │             │             │                 │
-└───────┼─────────────┼─────────────┼─────────────────┘
-        │             │             │
-        ▼             ▼             ▼
-   Prometheus     Fluentd       Jaeger
+```mermaid
+flowchart TB
+    C["Client"] --> P
+
+    subgraph P["Proxy"]
+        M["Metrics<br/>latency, rps, errors"]
+        L["Logs<br/>access logs"]
+        T["Traces<br/>span_id, trace_id"]
+    end
+
+    M --> Prom["Prometheus"]
+    L --> Flu["Fluentd"]
+    T --> Jae["Jaeger"]
 ```
 
 ---
 
 ## 5. Envoy vs ztunnel: Posicionamiento
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Espectro de Proxies                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   Simpler/Faster                            Richer Features     │
-│   L4 Only                                   L4 + L7             │
-│        ◄──────────────────────────────────────────────────►     │
-│                                                                 │
-│        ztunnel                              Envoy               │
-│           │                                   │                 │
-│           │ - mTLS                            │ - mTLS          │
-│           │ - L4 auth                         │ - L7 routing    │
-│           │ - Metrics                         │ - JWT auth      │
-│           │                                   │ - Rate limiting │
-│           │ Node-level                        │ - gRPC transcoding│
-│           │ Transparent                       │ - WASM          │
-│                                               │                 │
-│                                               │ Sidecar o       │
-│                                               │ Waypoint        │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Spectrum["Espectro de Proxies"]
+        direction LR
+        subgraph ZT["ztunnel<br/>Simpler/Faster<br/>L4 Only"]
+            ZTF["- mTLS<br/>- L4 auth<br/>- Metrics<br/><br/>Node-level<br/>Transparent"]
+        end
+
+        subgraph ENV["Envoy<br/>Richer Features<br/>L4 + L7"]
+            ENVF["- mTLS<br/>- L7 routing<br/>- JWT auth<br/>- Rate limiting<br/>- gRPC transcoding<br/>- WASM<br/><br/>Sidecar o Waypoint"]
+        end
+
+        ZT ---|◄────────────►| ENV
+    end
 ```
 
 ---

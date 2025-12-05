@@ -33,31 +33,51 @@ Envoy es un **proxy L4/L7 de alto rendimiento** escrito en C++20, diseñado para
 
 ### 1.2 Características Principales
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Envoy Proxy                                  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Performance                    Observability                   │
-│  ├─ C++20, optimizado           ├─ Métricas (Prometheus)       │
-│  ├─ Event-driven (libevent)     ├─ Logging estructurado        │
-│  ├─ Zero-copy buffers           ├─ Distributed tracing         │
-│  └─ Connection pooling          └─ Admin interface             │
-│                                                                 │
-│  Protocols                      Extensibility                   │
-│  ├─ HTTP/1.1, HTTP/2, HTTP/3    ├─ Filter chains               │
-│  ├─ gRPC, gRPC-Web              ├─ WASM filters                │
-│  ├─ TCP, UDP                    ├─ Lua scripting               │
-│  ├─ MongoDB, Redis, etc.        └─ Plugin architecture         │
-│  └─ Custom protocols                                            │
-│                                                                 │
-│  Dynamic Configuration          Resilience                      │
-│  ├─ xDS APIs                    ├─ Circuit breakers            │
-│  ├─ Hot reload                  ├─ Retries, timeouts           │
-│  ├─ Runtime flags               ├─ Rate limiting               │
-│  └─ Zero downtime updates       └─ Health checking             │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Envoy["Envoy Proxy"]
+        subgraph Perf["Performance"]
+            P1["C++20, optimizado"]
+            P2["Event-driven (libevent)"]
+            P3["Zero-copy buffers"]
+            P4["Connection pooling"]
+        end
+
+        subgraph Obs["Observability"]
+            O1["Métricas (Prometheus)"]
+            O2["Logging estructurado"]
+            O3["Distributed tracing"]
+            O4["Admin interface"]
+        end
+
+        subgraph Proto["Protocols"]
+            PR1["HTTP/1.1, HTTP/2, HTTP/3"]
+            PR2["gRPC, gRPC-Web"]
+            PR3["TCP, UDP"]
+            PR4["MongoDB, Redis, etc."]
+        end
+
+        subgraph Ext["Extensibility"]
+            E1["Filter chains"]
+            E2["WASM filters"]
+            E3["Lua scripting"]
+            E4["Plugin architecture"]
+        end
+
+        subgraph Dyn["Dynamic Configuration"]
+            D1["xDS APIs"]
+            D2["Hot reload"]
+            D3["Runtime flags"]
+            D4["Zero downtime updates"]
+        end
+
+        subgraph Res["Resilience"]
+            R1["Circuit breakers"]
+            R2["Retries, timeouts"]
+            R3["Rate limiting"]
+            R4["Health checking"]
+        end
+    end
 ```
 
 ---
@@ -66,50 +86,37 @@ Envoy es un **proxy L4/L7 de alto rendimiento** escrito en C++20, diseñado para
 
 ### 2.1 Data Plane vs Control Plane
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      CONTROL PLANE                              │
-│              (Istio, Consul, custom xDS server)                 │
-│                                                                 │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
-│  │   LDS    │  │   CDS    │  │   RDS    │  │   EDS    │        │
-│  │Listeners │  │ Clusters │  │  Routes  │  │Endpoints │        │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘        │
-│       │             │             │             │               │
-└───────┼─────────────┼─────────────┼─────────────┼───────────────┘
-        │             │             │             │
-        │        gRPC streaming (xDS)            │
-        │             │             │             │
-        ▼             ▼             ▼             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       DATA PLANE                                │
-│                        (Envoy)                                  │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                     Listeners                            │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐              │   │
-│  │  │:10000    │  │:10001    │  │:9901     │              │   │
-│  │  │HTTP      │  │TCP       │  │Admin     │              │   │
-│  │  └────┬─────┘  └────┬─────┘  └──────────┘              │   │
-│  └───────┼─────────────┼────────────────────────────────────┘   │
-│          │             │                                        │
-│          ▼             ▼                                        │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                   Filter Chains                          │   │
-│  │  Network Filters → HTTP Connection Manager → HTTP Filters│   │
-│  └───────────────────────────┬─────────────────────────────┘   │
-│                              │                                  │
-│                              ▼                                  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                     Clusters                             │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐              │   │
-│  │  │api-v1    │  │api-v2    │  │db-cluster│              │   │
-│  │  │  │││     │  │  │││     │  │  │││     │              │   │
-│  │  │ endpoints│  │ endpoints│  │ endpoints│              │   │
-│  │  └──────────┘  └──────────┘  └──────────┘              │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph ControlPlane["CONTROL PLANE (Istio, Consul, custom xDS server)"]
+        LDS["LDS<br/>Listeners"]
+        CDS["CDS<br/>Clusters"]
+        RDS["RDS<br/>Routes"]
+        EDS["EDS<br/>Endpoints"]
+    end
+
+    LDS & CDS & RDS & EDS -->|"gRPC streaming (xDS)"| DataPlane
+
+    subgraph DataPlane["DATA PLANE (Envoy)"]
+        subgraph Listeners["Listeners"]
+            L1[":10000<br/>HTTP"]
+            L2[":10001<br/>TCP"]
+            L3[":9901<br/>Admin"]
+        end
+
+        subgraph Filters["Filter Chains"]
+            FC["Network Filters → HTTP Connection Manager → HTTP Filters"]
+        end
+
+        subgraph Clusters["Clusters"]
+            C1["api-v1<br/>endpoints"]
+            C2["api-v2<br/>endpoints"]
+            C3["db-cluster<br/>endpoints"]
+        end
+
+        L1 & L2 --> Filters
+        Filters --> Clusters
+    end
 ```
 
 ### 2.2 Componentes Principales
@@ -289,30 +296,23 @@ static_resources:
 
 ## 5. Flujo de Inicialización
 
-```
-main.cc
-  │
-  ▼
-Server::InstanceImpl::initialize()
-  │
-  ├─► Cargar bootstrap config
-  │
-  ├─► Inicializar stats
-  │
-  ├─► Crear ClusterManager
-  │
-  ├─► Crear ListenerManager
-  │
-  ├─► Suscribirse a xDS (si es dinámico)
-  │
-  └─► Crear worker threads
-        │
-        ▼
-      Worker::start()
-        │
-        ├─► Crear Dispatcher (event loop)
-        │
-        └─► Empezar a procesar eventos
+```mermaid
+flowchart TB
+    main["main.cc"]
+    init["Server::InstanceImpl::initialize()"]
+
+    main --> init
+
+    init --> step1["Cargar bootstrap config"]
+    step1 --> step2["Inicializar stats"]
+    step2 --> step3["Crear ClusterManager"]
+    step3 --> step4["Crear ListenerManager"]
+    step4 --> step5["Suscribirse a xDS (si es dinámico)"]
+    step5 --> step6["Crear worker threads"]
+
+    step6 --> worker["Worker::start()"]
+    worker --> disp["Crear Dispatcher (event loop)"]
+    disp --> events["Empezar a procesar eventos"]
 ```
 
 **Código**:
@@ -354,18 +354,15 @@ curl http://localhost:9901/ready
 
 Para profundizar en cada área:
 
-```
-Este documento
-  │
-  ├─► [02_threading_model.md] - Cómo Envoy maneja concurrencia
-  │
-  ├─► [03_life_of_request.md] - Flujo completo de un request
-  │
-  ├─► [04_filter_chains.md] - Network y HTTP filters
-  │
-  ├─► [05_cluster_management.md] - Clusters y load balancing
-  │
-  └─► [06_xds_protocol.md] - Configuración dinámica
+```mermaid
+flowchart TB
+    This["Este documento"]
+
+    This --> T1["02_threading_model.md<br/>Cómo Envoy maneja concurrencia"]
+    This --> T2["03_life_of_request.md<br/>Flujo completo de un request"]
+    This --> T3["04_filter_chains.md<br/>Network y HTTP filters"]
+    This --> T4["05_cluster_management.md<br/>Clusters y load balancing"]
+    This --> T5["06_xds_protocol.md<br/>Configuración dinámica"]
 ```
 
 ---

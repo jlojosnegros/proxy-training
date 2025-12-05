@@ -34,81 +34,53 @@ TLS (Transport Layer Security) proporciona:
 
 **TLS en el Modelo OSI**:
 
-```
-┌─────────────────────────────────────┐
-│ Layer 7: Application (HTTP, gRPC)  │
-├─────────────────────────────────────┤
-│ Layer 6/5: TLS/SSL                  │  ← TLS opera aquí
-├─────────────────────────────────────┤
-│ Layer 4: Transport (TCP)           │
-├─────────────────────────────────────┤
-│ Layer 3: Network (IP)              │
-└─────────────────────────────────────┘
+```mermaid
+block-beta
+    columns 1
+
+    l7["Layer 7: Application (HTTP, gRPC)"]
+    l6["Layer 6/5: TLS/SSL ← TLS opera aquí"]
+    l4["Layer 4: Transport (TCP)"]
+    l3["Layer 3: Network (IP)"]
 ```
 
 ### 1.2 El Handshake TLS 1.2
 
-```
-Cliente                                              Servidor
-   │                                                    │
-   │──────── ClientHello ──────────────────────────────>│
-   │         - TLS version                              │
-   │         - Cipher suites soportados                 │
-   │         - Random bytes                             │
-   │                                                    │
-   │<─────── ServerHello ──────────────────────────────│
-   │         - TLS version elegida                      │
-   │         - Cipher suite elegido                     │
-   │         - Random bytes                             │
-   │                                                    │
-   │<─────── Certificate ──────────────────────────────│
-   │         - Certificado X.509 del servidor           │
-   │                                                    │
-   │<─────── ServerKeyExchange ────────────────────────│
-   │         - Parámetros para key exchange             │
-   │                                                    │
-   │<─────── ServerHelloDone ──────────────────────────│
-   │                                                    │
-   │──────── ClientKeyExchange ────────────────────────>│
-   │         - Pre-master secret cifrado                │
-   │                                                    │
-   │──────── ChangeCipherSpec ─────────────────────────>│
-   │                                                    │
-   │──────── Finished (cifrado) ───────────────────────>│
-   │                                                    │
-   │<─────── ChangeCipherSpec ─────────────────────────│
-   │                                                    │
-   │<─────── Finished (cifrado) ───────────────────────│
-   │                                                    │
-   │         ┌─────────────────────────┐                │
-   │         │ Conexión TLS establecida│                │
-   │         │ Datos cifrados          │                │
-   │         └─────────────────────────┘                │
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant S as Servidor
+
+    C->>S: ClientHello<br/>(TLS version, Cipher suites, Random)
+    S->>C: ServerHello<br/>(TLS version elegida, Cipher suite, Random)
+    S->>C: Certificate (X.509 del servidor)
+    S->>C: ServerKeyExchange (parámetros key exchange)
+    S->>C: ServerHelloDone
+
+    C->>S: ClientKeyExchange (Pre-master secret cifrado)
+    C->>S: ChangeCipherSpec
+    C->>S: Finished (cifrado)
+
+    S->>C: ChangeCipherSpec
+    S->>C: Finished (cifrado)
+
+    Note over C,S: Conexión TLS establecida<br/>Datos cifrados
 ```
 
 ### 1.3 El Handshake TLS 1.3 (Simplificado)
 
 TLS 1.3 reduce el handshake a 1-RTT:
 
-```
-Cliente                                              Servidor
-   │                                                    │
-   │──────── ClientHello ──────────────────────────────>│
-   │         + KeyShare                                 │
-   │         + Supported versions                       │
-   │                                                    │
-   │<─────── ServerHello ──────────────────────────────│
-   │         + KeyShare                                 │
-   │         + {EncryptedExtensions}                    │
-   │         + {Certificate}                            │
-   │         + {CertificateVerify}                      │
-   │         + {Finished}                               │
-   │                                                    │
-   │──────── {Finished} ───────────────────────────────>│
-   │                                                    │
-   │         ┌─────────────────────────┐                │
-   │         │ Conexión TLS establecida│                │
-   │         └─────────────────────────┘                │
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant S as Servidor
+
+    C->>S: ClientHello + KeyShare + Supported versions
+    S->>C: ServerHello + KeyShare<br/>+ {EncryptedExtensions}<br/>+ {Certificate}<br/>+ {CertificateVerify}<br/>+ {Finished}
+    C->>S: {Finished}
+
+    Note over C,S: Conexión TLS establecida (1-RTT)
 ```
 
 **Ventajas de TLS 1.3**:
@@ -122,13 +94,13 @@ Cliente                                              Servidor
 
 Un cipher suite define los algoritmos usados:
 
-```
-TLS_AES_256_GCM_SHA384
-│   │       │    │
-│   │       │    └── Hash para key derivation
-│   │       └────── Mode de operación (autenticado)
-│   └────────────── Algoritmo de cifrado simétrico
-└────────────────── Protocolo
+```mermaid
+flowchart LR
+    subgraph Cipher["TLS_AES_256_GCM_SHA384"]
+        TLS["TLS<br/>(Protocolo)"] --> AES["AES_256<br/>(Cifrado simétrico)"]
+        AES --> GCM["GCM<br/>(Mode autenticado)"]
+        GCM --> SHA["SHA384<br/>(Hash key derivation)"]
+    end
 ```
 
 **ztunnel** usa solo TLS 1.3 con:
@@ -142,55 +114,41 @@ TLS_AES_256_GCM_SHA384
 
 ### 2.1 Estructura de un Certificado
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Certificado X.509                                           │
-├─────────────────────────────────────────────────────────────┤
-│ Subject: CN=api.example.com, O=MyCompany, C=US              │
-│          (Identidad del propietario)                        │
-├─────────────────────────────────────────────────────────────┤
-│ Issuer: CN=MyCA, O=MyCompany, C=US                          │
-│         (Quién firmó el certificado)                        │
-├─────────────────────────────────────────────────────────────┤
-│ Validity:                                                   │
-│   Not Before: Dec 01 00:00:00 2025 GMT                      │
-│   Not After:  Dec 01 00:00:00 2026 GMT                      │
-├─────────────────────────────────────────────────────────────┤
-│ Public Key: RSA 2048 bits o EC P-256                        │
-├─────────────────────────────────────────────────────────────┤
-│ Extensions:                                                 │
-│   Subject Alternative Names (SAN):                          │
-│     - DNS: api.example.com                                  │
-│     - DNS: *.example.com                                    │
-│     - IP: 10.0.1.5                                          │
-│   Key Usage: Digital Signature, Key Encipherment            │
-│   Extended Key Usage: Server Authentication                 │
-├─────────────────────────────────────────────────────────────┤
-│ Signature: (firmado por la clave privada del Issuer)        │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+block-beta
+    columns 1
+
+    block:title
+        columns 1
+        t["Certificado X.509"]
+    end
+
+    subj["Subject: CN=api.example.com, O=MyCompany, C=US<br/>(Identidad del propietario)"]
+    issuer["Issuer: CN=MyCA, O=MyCompany, C=US<br/>(Quién firmó el certificado)"]
+    validity["Validity: Dec 01 2025 - Dec 01 2026 GMT"]
+    pubkey["Public Key: RSA 2048 bits o EC P-256"]
+
+    block:extensions
+        columns 1
+        ext["Extensions"]
+        san["SAN: DNS:api.example.com, DNS:*.example.com, IP:10.0.1.5"]
+        usage["Key Usage: Digital Signature, Key Encipherment"]
+        extusage["Extended Key Usage: Server Authentication"]
+    end
+
+    sig["Signature: (firmado por clave privada del Issuer)"]
 ```
 
 ### 2.2 Cadena de Confianza
 
-```
-┌─────────────────────────────────────────┐
-│ Root CA Certificate                     │  ← Self-signed, en trust store
-│ (Auto-firmado)                          │
-└─────────────────────────────────────────┘
-              │
-              │ firma
-              ▼
-┌─────────────────────────────────────────┐
-│ Intermediate CA Certificate             │  ← Firmado por Root CA
-│                                         │
-└─────────────────────────────────────────┘
-              │
-              │ firma
-              ▼
-┌─────────────────────────────────────────┐
-│ Server Certificate                      │  ← Firmado por Intermediate
-│ (api.example.com)                       │     Presentado al cliente
-└─────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Root["Root CA Certificate<br/>(Auto-firmado)<br/>← Self-signed, en trust store"]
+    Inter["Intermediate CA Certificate<br/>← Firmado por Root CA"]
+    Server["Server Certificate<br/>(api.example.com)<br/>← Presentado al cliente"]
+
+    Root -->|firma| Inter
+    Inter -->|firma| Server
 ```
 
 **Verificación**:
@@ -208,40 +166,45 @@ TLS_AES_256_GCM_SHA384
 
 En TLS estándar, solo el **servidor** presenta certificado. En mTLS, **ambas partes** lo hacen:
 
-```
-TLS (one-way):                       mTLS (mutual):
+```mermaid
+flowchart TB
+    subgraph TLS["TLS (one-way)"]
+        direction LR
+        C1["Client"] -->|¿Quién eres?| S1["Server"]
+        S1 -->|Certificado| C1
+        C1 -.-|✓ Verificado| C1
+    end
 
-Client ─────────────> Server         Client <───────────> Server
-        "¿Quién eres?"                      "¿Quién eres tú?"
-        <── Certificado                     <── Certificado servidor
-        ✓ Verificado                        ✓ Verificado
-                                            "¿Quién eres tú?"
-                                            ──> Certificado cliente
-                                            ✓ Verificado
+    subgraph mTLS["mTLS (mutual)"]
+        direction LR
+        C2["Client"] <-->|Certificados| S2["Server"]
+        C2 -.-|✓ Ambos verificados| S2
+    end
 ```
 
 ### 3.2 Handshake mTLS
 
-```
-Cliente                                              Servidor
-   │                                                    │
-   │──────── ClientHello ──────────────────────────────>│
-   │                                                    │
-   │<─────── ServerHello ──────────────────────────────│
-   │<─────── Certificate (servidor) ───────────────────│
-   │<─────── CertificateRequest ───────────────────────│  ← Pide cert al cliente
-   │<─────── ServerHelloDone ──────────────────────────│
-   │                                                    │
-   │──────── Certificate (cliente) ────────────────────>│  ← Cliente envía su cert
-   │──────── ClientKeyExchange ────────────────────────>│
-   │──────── CertificateVerify ────────────────────────>│  ← Prueba posesión de key
-   │──────── ChangeCipherSpec ─────────────────────────>│
-   │──────── Finished ─────────────────────────────────>│
-   │                                                    │
-   │<─────── ChangeCipherSpec ─────────────────────────│
-   │<─────── Finished ─────────────────────────────────│
-   │                                                    │
-   │         Ambas identidades verificadas              │
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant S as Servidor
+
+    C->>S: ClientHello
+    S->>C: ServerHello
+    S->>C: Certificate (servidor)
+    S->>C: CertificateRequest ← Pide cert al cliente
+    S->>C: ServerHelloDone
+
+    C->>S: Certificate (cliente) ← Cliente envía su cert
+    C->>S: ClientKeyExchange
+    C->>S: CertificateVerify ← Prueba posesión de key
+    C->>S: ChangeCipherSpec
+    C->>S: Finished
+
+    S->>C: ChangeCipherSpec
+    S->>C: Finished
+
+    Note over C,S: Ambas identidades verificadas
 ```
 
 ### 3.3 ¿Por qué mTLS en Service Mesh?
@@ -255,13 +218,9 @@ En un service mesh:
   - Cifrado de datos en tránsito
   - Base para políticas de autorización
 
-```
-┌─────────────┐          mTLS           ┌─────────────┐
-│  Service A  │◄───────────────────────►│  Service B  │
-│             │                         │             │
-│  ID: A      │   Ambos verifican       │  ID: B      │
-│             │   identidad del otro    │             │
-└─────────────┘                         └─────────────┘
+```mermaid
+flowchart LR
+    A["Service A<br/>ID: A"] <-->|mTLS<br/>Ambos verifican<br/>identidad del otro| B["Service B<br/>ID: B"]
 ```
 
 ---
@@ -293,23 +252,21 @@ Subject Alternative Names:
 
 Istio usa SPIFFE para identidades de workloads:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Pod: frontend-abc123                                         │
-│ Namespace: default                                           │
-│ Service Account: frontend                                    │
-│                                                              │
-│ SPIFFE ID: spiffe://cluster.local/ns/default/sa/frontend     │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              │ Certificado SVID
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│ X.509 Certificate                                            │
-│ Subject: O=cluster.local                                     │
-│ SAN: URI: spiffe://cluster.local/ns/default/sa/frontend      │
-│ Validity: 24 hours (rotación automática)                     │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Pod["Pod: frontend-abc123"]
+        ns["Namespace: default"]
+        sa["Service Account: frontend"]
+        spiffe["SPIFFE ID: spiffe://cluster.local/ns/default/sa/frontend"]
+    end
+
+    subgraph Cert["X.509 Certificate (SVID)"]
+        subj["Subject: O=cluster.local"]
+        san["SAN: URI: spiffe://cluster.local/ns/default/sa/frontend"]
+        valid["Validity: 24 hours (rotación automática)"]
+    end
+
+    Pod -->|Certificado SVID| Cert
 ```
 
 ### 4.3 ztunnel e Identidades
@@ -434,19 +391,18 @@ Ztunnel's TLS is built on rustls.
 
 HBONE es HTTP/2 CONNECT sobre mTLS:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ HBONE Tunnel                                                 │
-├─────────────────────────────────────────────────────────────┤
-│ Layer 7: HTTP/2 CONNECT                                      │
-│          :authority = destinación                            │
-├─────────────────────────────────────────────────────────────┤
-│ Layer 6: mTLS con certificados SPIFFE                        │
-│          Client cert: spiffe://cluster.local/ns/A/sa/...     │
-│          Server cert: spiffe://cluster.local/ns/B/sa/...     │
-├─────────────────────────────────────────────────────────────┤
-│ Layer 4: TCP puerto 15008                                    │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+block-beta
+    columns 1
+
+    block:title
+        columns 1
+        t["HBONE Tunnel"]
+    end
+
+    l7["Layer 7: HTTP/2 CONNECT<br/>:authority = destinación"]
+    l6["Layer 6: mTLS con certificados SPIFFE<br/>Client cert: spiffe://cluster.local/ns/A/sa/...<br/>Server cert: spiffe://cluster.local/ns/B/sa/..."]
+    l4["Layer 4: TCP puerto 15008"]
 ```
 
 ---

@@ -24,82 +24,49 @@ Al completar este documento:
 
 ### 1.1 Decisión de Alto Nivel
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    DECISION TREE                                │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ¿Necesitas Service Mesh?                                      │
-│  │                                                              │
-│  ├── NO ────────────────────────────────────────────────────── │
-│  │   │                                                         │
-│  │   └── ¿Qué necesitas?                                      │
-│  │       │                                                     │
-│  │       ├── Solo load balancing ───────> Cloud LB / HAProxy  │
-│  │       ├── Solo ingress ──────────────> Nginx / Traefik     │
-│  │       └── API Gateway ───────────────> Kong / Envoy Gateway│
-│  │                                                             │
-│  └── SÍ ───────────────────────────────────────────────────── │
-│      │                                                         │
-│      └── ¿Qué % de servicios necesitan L7?                    │
-│          │                                                     │
-│          ├── Mayoría (>70%) ────────────> Sidecar Mode (Envoy)│
-│          │                                                     │
-│          ├── Minoría (<30%) ────────────> Ambient + Waypoints │
-│          │                                                     │
-│          └── Mixto (30-70%)                                   │
-│              │                                                 │
-│              └── ¿Recursos son críticos?                      │
-│                  │                                             │
-│                  ├── SÍ ────────────────> Ambient + Waypoints │
-│                  └── NO ────────────────> Sidecar Mode        │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Start["¿Necesitas Service Mesh?"]
+
+    Start -->|"NO"| NoMesh["¿Qué necesitas?"]
+    NoMesh -->|"Solo load balancing"| CloudLB["Cloud LB / HAProxy"]
+    NoMesh -->|"Solo ingress"| Nginx["Nginx / Traefik"]
+    NoMesh -->|"API Gateway"| Kong["Kong / Envoy Gateway"]
+
+    Start -->|"SÍ"| L7Q["¿Qué % de servicios necesitan L7?"]
+    L7Q -->|"Mayoría (>70%)"| Sidecar1["Sidecar Mode (Envoy)"]
+    L7Q -->|"Minoría (<30%)"| Ambient1["Ambient + Waypoints"]
+    L7Q -->|"Mixto (30-70%)"| ResourceQ["¿Recursos son críticos?"]
+    ResourceQ -->|"SÍ"| Ambient2["Ambient + Waypoints"]
+    ResourceQ -->|"NO"| Sidecar2["Sidecar Mode"]
+
+    style Sidecar1 fill:#4a9eff,color:#fff
+    style Sidecar2 fill:#4a9eff,color:#fff
+    style Ambient1 fill:#10b981,color:#fff
+    style Ambient2 fill:#10b981,color:#fff
 ```
 
 ### 1.2 Decisión de Modo de Istio
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│              SIDECAR vs AMBIENT DECISION                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                    SIDECAR MODE                          │   │
-│  │                                                          │   │
-│  │  Elegir cuando:                                          │   │
-│  │  ✓ Necesitas L7 para casi todos los servicios           │   │
-│  │  ✓ Usas extensivamente WASM/Lua                         │   │
-│  │  ✓ Compliance requiere proxy por pod                    │   │
-│  │  ✓ Ya tienes inversión en sidecar config               │   │
-│  │  ✓ Necesitas máximo aislamiento de fallas              │   │
-│  │                                                          │   │
-│  │  Trade-offs:                                             │   │
-│  │  • +50-100MB RAM por pod                                │   │
-│  │  • Restart de pods para upgrades                        │   │
-│  │  • Mayor latencia (+1-5ms)                              │   │
-│  │                                                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                   AMBIENT MODE                           │   │
-│  │                                                          │   │
-│  │  Elegir cuando:                                          │   │
-│  │  ✓ Mayoría de servicios solo necesitan mTLS             │   │
-│  │  ✓ Recursos son limitados (muchos pods pequeños)        │   │
-│  │  ✓ Upgrades frecuentes del mesh                         │   │
-│  │  ✓ Latencia L4 es crítica                               │   │
-│  │  ✓ Simplicidad operativa es prioridad                   │   │
-│  │                                                          │   │
-│  │  Trade-offs:                                             │   │
-│  │  • L7 requiere waypoint adicional                       │   │
-│  │  • Menos battle-tested                                  │   │
-│  │  • Algunas features no disponibles                      │   │
-│  │                                                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+**SIDECAR MODE**
+
+| Elegir cuando | Trade-offs |
+|---------------|------------|
+| ✓ Necesitas L7 para casi todos los servicios | +50-100MB RAM por pod |
+| ✓ Usas extensivamente WASM/Lua | Restart de pods para upgrades |
+| ✓ Compliance requiere proxy por pod | Mayor latencia (+1-5ms) |
+| ✓ Ya tienes inversión en sidecar config | |
+| ✓ Necesitas máximo aislamiento de fallas | |
+
+**AMBIENT MODE**
+
+| Elegir cuando | Trade-offs |
+|---------------|------------|
+| ✓ Mayoría de servicios solo necesitan mTLS | L7 requiere waypoint adicional |
+| ✓ Recursos son limitados (muchos pods pequeños) | Menos battle-tested |
+| ✓ Upgrades frecuentes del mesh | Algunas features no disponibles |
+| ✓ Latencia L4 es crítica | |
+| ✓ Simplicidad operativa es prioridad | |
 
 ---
 

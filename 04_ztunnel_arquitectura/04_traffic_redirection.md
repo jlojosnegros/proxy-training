@@ -26,43 +26,26 @@ Al completar este documento:
 
 Las aplicaciones no saben que existe un proxy:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Sin Redirección                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  App quiere conectar a backend:8080                            │
-│                                                                 │
-│  Pod A                           Pod B                          │
-│  ┌─────────┐                    ┌─────────┐                    │
-│  │   App   │──── TCP ──────────>│ Backend │                    │
-│  │         │    DIRECTO         │  :8080  │                    │
-│  └─────────┘                    └─────────┘                    │
-│                                                                 │
-│  Problema: Sin mTLS, sin policies, sin observabilidad          │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph NoRedir["Sin Redirección"]
+        PodA1["Pod A<br/>App"] -->|"TCP DIRECTO"| PodB1["Pod B<br/>Backend :8080"]
+    end
+
+    Problem["Problema: Sin mTLS, sin policies, sin observabilidad"]
 ```
 
 ### 1.2 La Solución: Redirección Transparente
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Con Redirección                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  App quiere conectar a backend:8080                            │
-│  PERO iptables redirige a ztunnel                              │
-│                                                                 │
-│  Pod A             ztunnel           ztunnel           Pod B   │
-│  ┌─────────┐      ┌─────────┐      ┌─────────┐      ┌─────────┐│
-│  │   App   │─────>│ Outbound│═════>│ Inbound │─────>│ Backend ││
-│  │         │ redir│  :15001 │ HBONE│  :15008 │ redir│  :8080  ││
-│  └─────────┘      └─────────┘      └─────────┘      └─────────┘│
-│                                                                 │
-│  La app NO SABE que el tráfico pasa por ztunnel               │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph WithRedir["Con Redirección"]
+        PodA2["Pod A<br/>App"] -->|"redir"| ZTOut["ztunnel<br/>Outbound :15001"]
+        ZTOut -->|"HBONE"| ZTIn["ztunnel<br/>Inbound :15008"]
+        ZTIn -->|"redir"| PodB2["Pod B<br/>Backend :8080"]
+    end
+
+    Note["App quiere conectar a backend:8080<br/>PERO iptables redirige a ztunnel<br/>La app NO SABE que el tráfico pasa por ztunnel"]
 ```
 
 ---
@@ -73,29 +56,28 @@ Las aplicaciones no saben que existe un proxy:
 
 Netfilter es el framework de filtrado de paquetes del kernel Linux:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Netfilter Hooks                            │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Paquete                                                        │
-│     │                                                           │
-│     ▼                                                           │
-│  ┌─────────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐  │
-│  │PREROUTING│────>│ INPUT   │────>│ Local   │────>│ OUTPUT  │  │
-│  │         │     │         │     │ Process │     │         │  │
-│  └────┬────┘     └─────────┘     └─────────┘     └────┬────┘  │
-│       │                                               │        │
-│       │ (si es forward)                              │        │
-│       ▼                                               ▼        │
-│  ┌─────────┐                                    ┌─────────┐   │
-│  │ FORWARD │                                    │POSTROUTING  │
-│  │         │───────────────────────────────────>│         │   │
-│  └─────────┘                                    └─────────┘   │
-│                                                                 │
-│  iptables es la herramienta para configurar netfilter         │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Netfilter["Netfilter Hooks"]
+        Packet["Paquete"]
+        PRE["PREROUTING"]
+        INPUT["INPUT"]
+        LOCAL["Local Process"]
+        OUTPUT["OUTPUT"]
+        FWD["FORWARD"]
+        POST["POSTROUTING"]
+
+        Packet --> PRE
+        PRE --> INPUT
+        INPUT --> LOCAL
+        LOCAL --> OUTPUT
+        OUTPUT --> POST
+
+        PRE -->|"si es forward"| FWD
+        FWD --> POST
+    end
+
+    Note["iptables es la herramienta para configurar netfilter"]
 ```
 
 ### 2.2 Tablas de iptables
@@ -109,26 +91,10 @@ Netfilter es el framework de filtrado de paquetes del kernel Linux:
 
 ### 2.3 Chains Relevantes para Redirección
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                  Chains para Redirección                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Para OUTBOUND (tráfico saliente del pod):                     │
-│  ─────────────────────────────────────────                      │
-│  OUTPUT (nat) → PREROUTING del destino                         │
-│  - Captura tráfico que sale de la app                          │
-│  - Redirige a ztunnel:15001                                    │
-│                                                                 │
-│  Para INBOUND (tráfico entrante al pod):                       │
-│  ────────────────────────────────────────                       │
-│  PREROUTING (nat)                                              │
-│  - Captura tráfico que llega al pod                            │
-│  - Redirige a ztunnel:15006 (plaintext)                        │
-│  - O llega directo a ztunnel:15008 (HBONE)                     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Dirección | Chain | Descripción |
+|-----------|-------|-------------|
+| **OUTBOUND** | OUTPUT (nat) | Captura tráfico que sale de la app. Redirige a ztunnel:15001 |
+| **INBOUND** | PREROUTING (nat) | Captura tráfico que llega al pod. Redirige a ztunnel:15006 (plaintext) o llega directo a ztunnel:15008 (HBONE) |
 
 ---
 
@@ -136,40 +102,31 @@ Netfilter es el framework de filtrado de paquetes del kernel Linux:
 
 ### 3.1 Node-Level vs In-Pod Redirection
 
+**NODE-LEVEL (usando node network namespace):**
+
+```mermaid
+flowchart TB
+    subgraph NodeLevel["Node"]
+        ZT["ztunnel (en host network ns)"]
+        ZT --> PA["Pod A"] & PB["Pod B"] & PC["Pod C"]
+    end
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                  Modos de Redirección                           │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  NODE-LEVEL (usando node network namespace):                   │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ Node                                                     │   │
-│  │ ┌──────────────────────────────────────────┐            │   │
-│  │ │ ztunnel (en host network ns)             │            │   │
-│  │ └────────────────────────────┬─────────────┘            │   │
-│  │                              │                           │   │
-│  │     ┌────────────────────────┼────────────────────┐     │   │
-│  │     │                        │                     │     │   │
-│  │     ▼                        ▼                     ▼     │   │
-│  │ ┌─────────┐             ┌─────────┐          ┌─────────┐│   │
-│  │ │  Pod A  │             │  Pod B  │          │  Pod C  ││   │
-│  │ └─────────┘             └─────────┘          └─────────┘│   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  IN-POD (ztunnel entra en network namespace del pod):          │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ Node                                                     │   │
-│  │                                                          │   │
-│  │ ┌─────────┐    ┌─────────┐    ┌─────────┐               │   │
-│  │ │  Pod A  │    │  Pod B  │    │  Pod C  │               │   │
-│  │ │ ┌─────┐ │    │ ┌─────┐ │    │ ┌─────┐ │               │   │
-│  │ │ │zt-A │ │    │ │zt-B │ │    │ │zt-C │ │               │   │
-│  │ │ │proxy│ │    │ │proxy│ │    │ │proxy│ │               │   │
-│  │ │ └─────┘ │    │ └─────┘ │    │ └─────┘ │               │   │
-│  │ └─────────┘    └─────────┘    └─────────┘               │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+
+**IN-POD (ztunnel entra en network namespace del pod):**
+
+```mermaid
+flowchart TB
+    subgraph InPod["Node"]
+        subgraph PA2["Pod A"]
+            ZTA["zt-A proxy"]
+        end
+        subgraph PB2["Pod B"]
+            ZTB["zt-B proxy"]
+        end
+        subgraph PC2["Pod C"]
+            ZTC["zt-C proxy"]
+        end
+    end
 ```
 
 ### 3.2 Comparación
@@ -230,32 +187,18 @@ iptables -t nat -A ISTIO_INBOUND -p tcp -j REDIRECT --to-port 15006
 
 ### 4.3 Visualización del Flujo
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│               Outbound Flow con iptables                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  App:  connect(10.0.2.5, 8080)                                 │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ OUTPUT chain (nat table)                                 │   │
-│  │                                                          │   │
-│  │ Rule: -j REDIRECT --to-port 15001                       │   │
-│  │                                                          │   │
-│  │ Resultado:                                               │   │
-│  │   dest IP: 10.0.2.5 → 127.0.0.1                         │   │
-│  │   dest port: 8080 → 15001                               │   │
-│  │   PERO: SO_ORIGINAL_DST guarda (10.0.2.5, 8080)         │   │
-│  │                                                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│         │                                                       │
-│         ▼                                                       │
-│  ztunnel:15001 recibe conexión                                 │
-│  Lee destino original con getsockopt(SO_ORIGINAL_DST)          │
-│  Sabe que la app quería ir a 10.0.2.5:8080                    │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    App["App: connect(10.0.2.5, 8080)"]
+
+    subgraph Output["OUTPUT chain (nat table)"]
+        Rule["Rule: -j REDIRECT --to-port 15001"]
+        Result["Resultado:<br/>dest IP: 10.0.2.5 → 127.0.0.1<br/>dest port: 8080 → 15001<br/>PERO: SO_ORIGINAL_DST guarda (10.0.2.5, 8080)"]
+    end
+
+    Ztunnel["ztunnel:15001 recibe conexión<br/>Lee destino original con getsockopt(SO_ORIGINAL_DST)<br/>Sabe que la app quería ir a 10.0.2.5:8080"]
+
+    App --> Output --> Ztunnel
 ```
 
 ---
@@ -315,25 +258,22 @@ async fn get_original_dst(stream: &TcpStream) -> Result<SocketAddr> {
 
 istio-cni es un plugin CNI que configura automáticamente las reglas:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      istio-cni Flow                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1. Pod nuevo creado en namespace con ambient enabled          │
-│                                                                 │
-│  2. kubelet llama a CNI plugins                                │
-│     └── istio-cni plugin ejecuta                               │
-│                                                                 │
-│  3. istio-cni:                                                 │
-│     a) Detecta que es pod ambient                              │
-│     b) Entra en network namespace del pod                      │
-│     c) Configura reglas iptables                               │
-│     d) Sale del namespace                                      │
-│                                                                 │
-│  4. Pod arranca con redirección configurada                    │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    S1["1. Pod nuevo creado en namespace con ambient enabled"]
+    S2["2. kubelet llama a CNI plugins<br/>└── istio-cni plugin ejecuta"]
+
+    subgraph S3["3. istio-cni"]
+        A["a) Detecta que es pod ambient"]
+        B["b) Entra en network namespace del pod"]
+        C["c) Configura reglas iptables"]
+        D["d) Sale del namespace"]
+        A --> B --> C --> D
+    end
+
+    S4["4. Pod arranca con redirección configurada"]
+
+    S1 --> S2 --> S3 --> S4
 ```
 
 ### 6.2 Componentes de istio-cni

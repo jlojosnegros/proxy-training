@@ -26,40 +26,25 @@ Al completar este documento:
 
 De `ARCHITECTURE.md`:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    ztunnel Process                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │               MAIN RUNTIME (Admin)                       │   │
-│  │               Single-threaded Tokio                      │   │
-│  ├─────────────────────────────────────────────────────────┤   │
-│  │                                                          │   │
-│  │  • XDS subscription (comunicación con istiod)            │   │
-│  │  • Admin interface (localhost:15000)                     │   │
-│  │  • Metrics endpoint (port 15020)                         │   │
-│  │  • Debug interfaces                                      │   │
-│  │                                                          │   │
-│  │  Aislado del data plane para no impactar latencia       │   │
-│  │                                                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │               WORKER RUNTIME (Data Plane)                │   │
-│  │               Multi-threaded Tokio (default: 2 threads)  │   │
-│  ├─────────────────────────────────────────────────────────┤   │
-│  │                                                          │   │
-│  │  • Proxy connections (15001, 15006, 15008)              │   │
-│  │  • mTLS handshakes                                       │   │
-│  │  • Traffic forwarding                                    │   │
-│  │  • Connection management                                 │   │
-│  │                                                          │   │
-│  │  Threads configurables para escalar con carga           │   │
-│  │                                                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph ZtunnelProcess["ztunnel Process"]
+        subgraph MainRuntime["MAIN RUNTIME (Admin) - Single-threaded Tokio"]
+            M1["• XDS subscription (comunicación con istiod)"]
+            M2["• Admin interface (localhost:15000)"]
+            M3["• Metrics endpoint (port 15020)"]
+            M4["• Debug interfaces"]
+            MNote["Aislado del data plane para no impactar latencia"]
+        end
+
+        subgraph WorkerRuntime["WORKER RUNTIME (Data Plane) - Multi-threaded Tokio (default: 2 threads)"]
+            W1["• Proxy connections (15001, 15006, 15008)"]
+            W2["• mTLS handshakes"]
+            W3["• Traffic forwarding"]
+            W4["• Connection management"]
+            WNote["Threads configurables para escalar con carga"]
+        end
+    end
 ```
 
 ### 1.2 Por qué Dos Runtimes
@@ -105,30 +90,33 @@ async fn main() {
 
 ### 2.2 Modelo de Ejecución
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                   Tokio Runtime                                 │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                    Task Scheduler                        │   │
-│  └───────────────────────────┬─────────────────────────────┘   │
-│                              │                                  │
-│          ┌───────────────────┼───────────────────┐             │
-│          │                   │                   │             │
-│          ▼                   ▼                   ▼             │
-│     ┌─────────┐         ┌─────────┐         ┌─────────┐       │
-│     │ Thread 1│         │ Thread 2│         │Thread N │       │
-│     ├─────────┤         ├─────────┤         ├─────────┤       │
-│     │ Task A  │         │ Task D  │         │ Task G  │       │
-│     │ Task B  │         │ Task E  │         │ Task H  │       │
-│     │ Task C  │         │ Task F  │         │ Task I  │       │
-│     └─────────┘         └─────────┘         └─────────┘       │
-│                                                                 │
-│  Las tareas se distribuyen entre threads                       │
-│  Work-stealing balancea la carga                               │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph TokioRuntime["Tokio Runtime"]
+        Scheduler["Task Scheduler"]
+
+        Scheduler --> T1 & T2 & TN
+
+        subgraph T1["Thread 1"]
+            T1A["Task A"]
+            T1B["Task B"]
+            T1C["Task C"]
+        end
+
+        subgraph T2["Thread 2"]
+            T2D["Task D"]
+            T2E["Task E"]
+            T2F["Task F"]
+        end
+
+        subgraph TN["Thread N"]
+            TNG["Task G"]
+            TNH["Task H"]
+            TNI["Task I"]
+        end
+
+        Note["Las tareas se distribuyen entre threads<br/>Work-stealing balancea la carga"]
+    end
 ```
 
 ### 2.3 Async/Await en Rust
@@ -170,42 +158,55 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
 
 ### 3.2 Visualización
 
-```
-ENVOY:
-┌────────────────────────────────────────────────────────────────┐
-│ Worker Thread 1      │ Worker Thread 2     │ Worker Thread 3   │
-│ ┌──────────────────┐ │ ┌─────────────────┐ │ ┌───────────────┐ │
-│ │ Event Loop       │ │ │ Event Loop      │ │ │ Event Loop    │ │
-│ │                  │ │ │                 │ │ │               │ │
-│ │ Conn A ──────────│ │ │ Conn D ─────────│ │ │ Conn G ───────│ │
-│ │ Conn B ──────────│ │ │ Conn E ─────────│ │ │ Conn H ───────│ │
-│ │ Conn C ──────────│ │ │ Conn F ─────────│ │ │ Conn I ───────│ │
-│ │                  │ │ │                 │ │ │               │ │
-│ │ Conexiones fijas │ │ │ Conexiones fijas│ │ │Conexiones fijas│
-│ └──────────────────┘ │ └─────────────────┘ │ └───────────────┘ │
-└────────────────────────────────────────────────────────────────┘
+**ENVOY:**
 
-ZTUNNEL (Tokio):
-┌────────────────────────────────────────────────────────────────┐
-│                    Tokio Runtime                               │
-│ ┌────────────────────────────────────────────────────────────┐ │
-│ │                   Work-Stealing Scheduler                  │ │
-│ │                                                            │ │
-│ │    Task Pool:  [A] [B] [C] [D] [E] [F] [G] [H] [I]        │ │
-│ │                                                            │ │
-│ └─────────────────────────┬──────────────────────────────────┘ │
-│                           │                                    │
-│     ┌─────────────────────┼─────────────────────┐             │
-│     │                     │                     │             │
-│     ▼                     ▼                     ▼             │
-│ ┌─────────┐          ┌─────────┐          ┌─────────┐        │
-│ │Thread 1 │◄────────►│Thread 2 │◄────────►│Thread 3 │        │
-│ │ runs A,D│  steal   │ runs B,E│  steal   │runs C,F │        │
-│ └─────────┘          └─────────┘          └─────────┘        │
-│                                                                │
-│ Las tareas pueden ejecutarse en cualquier thread              │
-│ Work-stealing balancea automáticamente                        │
-└────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph EnvoyModel["Envoy Threading Model"]
+        subgraph W1["Worker Thread 1"]
+            EL1["Event Loop"]
+            CA["Conn A"]
+            CB["Conn B"]
+            CC["Conn C"]
+            N1["Conexiones fijas a este thread"]
+        end
+
+        subgraph W2["Worker Thread 2"]
+            EL2["Event Loop"]
+            CD["Conn D"]
+            CE["Conn E"]
+            CF["Conn F"]
+            N2["Conexiones fijas a este thread"]
+        end
+
+        subgraph W3["Worker Thread 3"]
+            EL3["Event Loop"]
+            CG["Conn G"]
+            CH["Conn H"]
+            CI["Conn I"]
+            N3["Conexiones fijas a este thread"]
+        end
+    end
+```
+
+**ZTUNNEL (Tokio):**
+
+```mermaid
+flowchart TB
+    subgraph TokioModel["Tokio Runtime"]
+        Scheduler["Work-Stealing Scheduler<br/>Task Pool: [A] [B] [C] [D] [E] [F] [G] [H] [I]"]
+
+        Scheduler --> T1 & T2 & T3
+
+        T1["Thread 1<br/>runs A,D"]
+        T2["Thread 2<br/>runs B,E"]
+        T3["Thread 3<br/>runs C,F"]
+
+        T1 <-->|"steal"| T2
+        T2 <-->|"steal"| T3
+
+        Note["Las tareas pueden ejecutarse en cualquier thread<br/>Work-stealing balancea automáticamente"]
+    end
 ```
 
 ---

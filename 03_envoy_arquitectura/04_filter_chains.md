@@ -24,31 +24,32 @@ Al completar este documento:
 
 ### 1.1 Jerarquía de Filters
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Filter Hierarchy                            │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Listener Filters                                               │
-│  ├── TLS Inspector (peek SNI)                                   │
-│  └── HTTP Inspector (detect HTTP)                               │
-│          │                                                      │
-│          ▼                                                      │
-│  Network Filters (L4)                                           │
-│  ├── TCP Proxy                                                  │
-│  ├── HTTP Connection Manager ──────────┐                        │
-│  ├── Mongo Proxy                       │                        │
-│  └── Redis Proxy                       │                        │
-│                                        │                        │
-│                                        ▼                        │
-│                               HTTP Filters (L7)                 │
-│                               ├── RBAC                          │
-│                               ├── JWT Authentication            │
-│                               ├── Rate Limit                    │
-│                               ├── CORS                          │
-│                               └── Router (terminal)             │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Hierarchy["Filter Hierarchy"]
+        subgraph LF["Listener Filters"]
+            LF1["TLS Inspector (peek SNI)"]
+            LF2["HTTP Inspector (detect HTTP)"]
+        end
+
+        subgraph NF["Network Filters (L4)"]
+            NF1["TCP Proxy"]
+            NF2["HTTP Connection Manager"]
+            NF3["Mongo Proxy"]
+            NF4["Redis Proxy"]
+        end
+
+        subgraph HF["HTTP Filters (L7)"]
+            HF1["RBAC"]
+            HF2["JWT Authentication"]
+            HF3["Rate Limit"]
+            HF4["CORS"]
+            HF5["Router (terminal)"]
+        end
+
+        LF --> NF
+        NF2 --> HF
+    end
 ```
 
 ### 1.2 Resumen
@@ -369,62 +370,69 @@ http_filters:
 
 ### 5.1 Decode Path (Request)
 
-```
-Request llega
-      │
-      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ FilterManager::decodeHeaders()                                  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  for (filter : decoder_filters_) {                             │
-│      status = filter->decodeHeaders(headers, end_stream);      │
-│                                                                 │
-│      if (status == StopIteration) {                            │
-│          // Pausar, filter hará callback cuando esté listo     │
-│          break;                                                 │
-│      }                                                          │
-│      // Continue → siguiente filter                             │
-│  }                                                              │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Request["Request llega"]
+    FM["FilterManager::decodeHeaders()"]
+
+    Request --> FM
+
+    subgraph Loop["for (filter : decoder_filters_)"]
+        Decode["filter->decodeHeaders(headers, end_stream)"]
+        Check{"status == StopIteration?"}
+        Next["Siguiente filter"]
+
+        Decode --> Check
+        Check -->|"No (Continue)"| Next
+        Check -->|"Sí"| Pause["Pausar, filter hará callback"]
+        Next --> Decode
+    end
+
+    FM --> Loop
 ```
 
 ### 5.2 Encode Path (Response)
 
-```
-Response llega de upstream
-      │
-      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ FilterManager::encodeHeaders()                                  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  // Orden INVERSO al decode                                     │
-│  for (filter : reverse(encoder_filters_)) {                    │
-│      status = filter->encodeHeaders(headers, end_stream);      │
-│                                                                 │
-│      if (status == StopIteration) {                            │
-│          break;                                                 │
-│      }                                                          │
-│  }                                                              │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Response["Response llega de upstream"]
+    FM["FilterManager::encodeHeaders()"]
+
+    Response --> FM
+
+    subgraph Loop["for (filter : reverse(encoder_filters_))"]
+        Encode["filter->encodeHeaders(headers, end_stream)"]
+        Check{"status == StopIteration?"}
+        Next["Siguiente filter (orden inverso)"]
+
+        Encode --> Check
+        Check -->|"No (Continue)"| Next
+        Check -->|"Sí"| Pause["Pausar"]
+        Next --> Encode
+    end
+
+    FM --> Loop
 ```
 
 ### 5.3 Ejemplo Visual
 
+```mermaid
+flowchart LR
+    subgraph Decode["Decode (Request)"]
+        direction LR
+        F1D["Filter1"] --> F2D["Filter2"] --> F3D["Filter3"] --> RD["Router"] --> UD["Upstream"]
+    end
 ```
-Decode (Request):
-  Filter1 → Filter2 → Filter3 → Router → Upstream
 
-Encode (Response):
-  Upstream → Router → Filter3 → Filter2 → Filter1 → Client
-
-Si Filter2 quiere añadir header a response:
-  - Se ejecuta en encodeHeaders()
-  - Antes de que llegue a Filter1 y Client
+```mermaid
+flowchart RL
+    subgraph Encode["Encode (Response)"]
+        direction RL
+        UE["Upstream"] --> RE["Router"] --> F3E["Filter3"] --> F2E["Filter2"] --> F1E["Filter1"] --> CE["Client"]
+    end
 ```
+
+> **Nota**: Si Filter2 quiere añadir header a response, se ejecuta en `encodeHeaders()` antes de que llegue a Filter1 y Client.
 
 ---
 

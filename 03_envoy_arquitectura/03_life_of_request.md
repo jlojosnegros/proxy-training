@@ -22,57 +22,28 @@ Al completar este documento:
 
 ## 1. Visión General del Flujo
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Life of a Request                            │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Client                                                         │
-│    │                                                            │
-│    │ 1. TCP Connect                                             │
-│    ▼                                                            │
-│  ┌─────────────────┐                                           │
-│  │    Listener     │ ─── 2. Accept connection                   │
-│  └────────┬────────┘                                           │
-│           │                                                     │
-│           │ 3. Create connection                                │
-│           ▼                                                     │
-│  ┌─────────────────┐                                           │
-│  │ Network Filters │ ─── 4. L4 processing (TLS, etc.)          │
-│  │   (L4 chain)    │                                           │
-│  └────────┬────────┘                                           │
-│           │                                                     │
-│           │ 5. If HTTP, pass to HCM                            │
-│           ▼                                                     │
-│  ┌─────────────────┐                                           │
-│  │ HTTP Connection │ ─── 6. Parse HTTP, create stream          │
-│  │    Manager      │                                           │
-│  └────────┬────────┘                                           │
-│           │                                                     │
-│           │ 7. Execute HTTP filter chain                        │
-│           ▼                                                     │
-│  ┌─────────────────┐                                           │
-│  │  HTTP Filters   │ ─── 8. Auth, rate limit, etc.             │
-│  │   (L7 chain)    │                                           │
-│  └────────┬────────┘                                           │
-│           │                                                     │
-│           │ 9. Router selects cluster                           │
-│           ▼                                                     │
-│  ┌─────────────────┐                                           │
-│  │     Router      │ ─── 10. Match route config                │
-│  └────────┬────────┘                                           │
-│           │                                                     │
-│           │ 11. Get connection from pool                        │
-│           ▼                                                     │
-│  ┌─────────────────┐                                           │
-│  │ Cluster Manager │ ─── 12. Load balance, health check        │
-│  └────────┬────────┘                                           │
-│           │                                                     │
-│           │ 13. Forward request                                 │
-│           ▼                                                     │
-│       Upstream                                                  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Client["Client"]
+
+    subgraph Envoy["Life of a Request"]
+        L["Listener<br/>2. Accept connection"]
+        NF["Network Filters (L4 chain)<br/>4. L4 processing (TLS, etc.)"]
+        HCM["HTTP Connection Manager<br/>6. Parse HTTP, create stream"]
+        HF["HTTP Filters (L7 chain)<br/>8. Auth, rate limit, etc."]
+        R["Router<br/>10. Match route config"]
+        CM["Cluster Manager<br/>12. Load balance, health check"]
+    end
+
+    Upstream["Upstream"]
+
+    Client -->|"1. TCP Connect"| L
+    L -->|"3. Create connection"| NF
+    NF -->|"5. If HTTP, pass to HCM"| HCM
+    HCM -->|"7. Execute HTTP filter chain"| HF
+    HF -->|"9. Router selects cluster"| R
+    R -->|"11. Get connection from pool"| CM
+    CM -->|"13. Forward request"| Upstream
 ```
 
 ---
@@ -134,30 +105,16 @@ class ConnectionImpl {
 
 ### 3.1 Estructura de la Filter Chain
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                   Network Filter Chain                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Downstream bytes                                               │
-│       │                                                         │
-│       ▼                                                         │
-│  ┌──────────────────┐                                          │
-│  │ TLS Inspector    │  ← Peek SNI without terminating TLS      │
-│  └────────┬─────────┘                                          │
-│           │                                                     │
-│           ▼                                                     │
-│  ┌──────────────────┐                                          │
-│  │ TLS Termination  │  ← Decrypt TLS (si está configurado)     │
-│  └────────┬─────────┘                                          │
-│           │                                                     │
-│           ▼                                                     │
-│  ┌──────────────────┐                                          │
-│  │ HTTP Connection  │  ← Si es HTTP, aquí empieza L7           │
-│  │ Manager          │                                          │
-│  └──────────────────┘                                          │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph NFC["Network Filter Chain"]
+        Bytes["Downstream bytes"]
+        TLSInsp["TLS Inspector<br/>← Peek SNI without terminating TLS"]
+        TLSTerm["TLS Termination<br/>← Decrypt TLS (si está configurado)"]
+        HCM["HTTP Connection Manager<br/>← Si es HTTP, aquí empieza L7"]
+
+        Bytes --> TLSInsp --> TLSTerm --> HCM
+    end
 ```
 
 ### 3.2 Network Filter Interface
@@ -246,28 +203,27 @@ void ConnectionManagerImpl::onHeadersComplete(StreamDecoderPtr&& decoder) {
 
 ### 4.3 Creación de Streams
 
+```mermaid
+flowchart TB
+    subgraph HTTP11["HTTP/1.1: 1 request por conexión (o secuencial con keep-alive)"]
+        subgraph Conn1["Connection"]
+            S1_1["Stream 1 (request 1)"]
+            S1_2["Stream 2 (request 2, después de 1)"]
+            S1_1 --> S1_2
+        end
+    end
 ```
-HTTP/1.1: 1 request por conexión (o secuencial con keep-alive)
-┌──────────────────────────────────────────┐
-│ Connection                               │
-│ ┌──────────────────────────────────────┐ │
-│ │ Stream 1 (request 1)                 │ │
-│ └──────────────────────────────────────┘ │
-│ ┌──────────────────────────────────────┐ │
-│ │ Stream 2 (request 2, después de 1)   │ │
-│ └──────────────────────────────────────┘ │
-└──────────────────────────────────────────┘
 
-HTTP/2: Múltiples streams simultáneos
-┌──────────────────────────────────────────┐
-│ Connection                               │
-│ ┌────────────────┐ ┌────────────────┐   │
-│ │ Stream 1       │ │ Stream 3       │   │
-│ └────────────────┘ └────────────────┘   │
-│ ┌────────────────┐ ┌────────────────┐   │
-│ │ Stream 5       │ │ Stream 7       │   │
-│ └────────────────┘ └────────────────┘   │
-└──────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph HTTP2["HTTP/2: Múltiples streams simultáneos"]
+        subgraph Conn2["Connection"]
+            S2_1["Stream 1"]
+            S2_3["Stream 3"]
+            S2_5["Stream 5"]
+            S2_7["Stream 7"]
+        end
+    end
 ```
 
 ---
@@ -338,32 +294,25 @@ FilterHeadersStatus Filter::decodeHeaders(RequestHeaderMap& headers, bool) {
 
 ### 5.3 Flujo de Decode (Request)
 
-```
-Headers llegan
-      │
-      ▼
-┌──────────────┐
-│ Filter 1     │── decodeHeaders() ─────┐
-│ (RBAC)       │                        │
-└──────────────┘                        │
-      │ Continue                        │
-      ▼                                 │
-┌──────────────┐                        │
-│ Filter 2     │── decodeHeaders()      │ Si StopIteration,
-│ (JWT)        │                        │ se detiene aquí
-└──────────────┘                        │
-      │ Continue                        │
-      ▼                                 │
-┌──────────────┐                        │
-│ Filter 3     │── decodeHeaders()      │
-│ (Rate Limit) │                        │
-└──────────────┘                        │
-      │ Continue                        │
-      ▼                                 │
-┌──────────────┐                        │
-│ Router       │── Último filter        │
-│              │   Forward to upstream  │
-└──────────────┘                        │
+```mermaid
+flowchart TB
+    Headers["Headers llegan"]
+
+    Headers --> F1
+    F1["Filter 1 (RBAC)<br/>decodeHeaders()"]
+    F1 -->|"Continue"| F2
+    F1 -.->|"StopIteration"| Stop["Se detiene aquí"]
+
+    F2["Filter 2 (JWT)<br/>decodeHeaders()"]
+    F2 -->|"Continue"| F3
+    F2 -.->|"StopIteration"| Stop
+
+    F3["Filter 3 (Rate Limit)<br/>decodeHeaders()"]
+    F3 -->|"Continue"| Router
+
+    Router["Router<br/>Último filter<br/>Forward to upstream"]
+
+    style Stop fill:#ff6b6b,color:#fff
 ```
 
 ---
@@ -517,35 +466,24 @@ void RouterFilter::onUpstreamHeaders(ResponseHeaderMapPtr&& headers, bool end_st
 
 ### 9.1 Flujo Inverso
 
-```
-Upstream response
-      │
-      ▼
-┌──────────────┐
-│ Router       │── encodeHeaders() ─────┐
-│              │                        │
-└──────────────┘                        │
-      │                                 │
-      ▼                                 │
-┌──────────────┐                        │
-│ Filter 3     │── encodeHeaders()      │
-│ (Rate Limit) │   (puede añadir headers)
-└──────────────┘                        │
-      │                                 │
-      ▼                                 │
-┌──────────────┐                        │
-│ Filter 2     │── encodeHeaders()      │
-│ (JWT)        │                        │
-└──────────────┘                        │
-      │                                 │
-      ▼                                 │
-┌──────────────┐                        │
-│ Filter 1     │── encodeHeaders()      │
-│ (RBAC)       │                        │
-└──────────────┘                        │
-      │                                 │
-      ▼                                 │
-  HTTP Codec → TCP → Client
+```mermaid
+flowchart TB
+    Upstream["Upstream response"]
+
+    Upstream --> Router
+    Router["Router<br/>encodeHeaders()"]
+    Router --> F3
+
+    F3["Filter 3 (Rate Limit)<br/>encodeHeaders()<br/>(puede añadir headers)"]
+    F3 --> F2
+
+    F2["Filter 2 (JWT)<br/>encodeHeaders()"]
+    F2 --> F1
+
+    F1["Filter 1 (RBAC)<br/>encodeHeaders()"]
+    F1 --> Output
+
+    Output["HTTP Codec → TCP → Client"]
 ```
 
 ---
@@ -593,27 +531,34 @@ void ActiveStream::onComplete() {
 
 ## 11. Diagrama de Secuencia Completo
 
-```
-Client          Listener    HCM       Filter1   Filter2   Router    ClusterMgr  Upstream
-  │                │          │          │         │         │          │          │
-  │── TCP SYN ────>│          │          │         │         │          │          │
-  │<── SYN-ACK ────│          │          │         │         │          │          │
-  │── ACK ────────>│          │          │         │         │          │          │
-  │                │          │          │         │         │          │          │
-  │── HTTP Req ───>│          │          │         │         │          │          │
-  │                │─ onData─>│          │         │         │          │          │
-  │                │          │─decode──>│         │         │          │          │
-  │                │          │          │─decode─>│         │          │          │
-  │                │          │          │         │─decode─>│          │          │
-  │                │          │          │         │         │─getCluster─>│       │
-  │                │          │          │         │         │          │─connect─>│
-  │                │          │          │         │         │          │          │
-  │                │          │          │         │         │<───── Response ─────│
-  │                │          │          │         │<─encode─│          │          │
-  │                │          │          │<─encode─│         │          │          │
-  │                │          │<─encode──│         │         │          │          │
-  │<── HTTP Resp ──│          │          │         │         │          │          │
-  │                │          │          │         │         │          │          │
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant L as Listener
+    participant HCM as HCM
+    participant F1 as Filter1
+    participant F2 as Filter2
+    participant R as Router
+    participant CM as ClusterMgr
+    participant U as Upstream
+
+    C->>L: TCP SYN
+    L->>C: SYN-ACK
+    C->>L: ACK
+
+    C->>L: HTTP Request
+    L->>HCM: onData
+    HCM->>F1: decode
+    F1->>F2: decode
+    F2->>R: decode
+    R->>CM: getCluster
+    CM->>U: connect
+
+    U->>R: Response
+    R->>F2: encode
+    F2->>F1: encode
+    F1->>HCM: encode
+    HCM->>C: HTTP Response
 ```
 
 ---

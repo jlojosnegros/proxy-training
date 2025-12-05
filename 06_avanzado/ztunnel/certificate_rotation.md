@@ -24,32 +24,11 @@ Al completar este documento:
 
 ### 1.1 Tipos de Certificados
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Certificates in ztunnel                      │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1. WORKLOAD CERTIFICATES (SVID)                               │
-│  ────────────────────────────────                               │
-│  • Un certificado por cada workload en el nodo                 │
-│  • Identidad SPIFFE: spiffe://cluster.local/ns/X/sa/Y          │
-│  • Usado para mTLS entre workloads                             │
-│  • Vida corta: 24 horas típicamente                            │
-│                                                                 │
-│  2. CA ROOT CERTIFICATE                                        │
-│  ───────────────────────                                        │
-│  • Certificado raíz de la CA de Istio                          │
-│  • Usado para validar certificados de otros workloads          │
-│  • Típicamente vida larga                                      │
-│                                                                 │
-│  3. ZTUNNEL'S OWN CERTIFICATE                                  │
-│  ─────────────────────────────                                  │
-│  • Certificado del propio ztunnel                              │
-│  • Usado para admin/metrics endpoints                          │
-│  • NO usado para mTLS de workloads                             │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Tipo | Descripción | Uso | Vida |
+|------|-------------|-----|------|
+| **WORKLOAD CERTIFICATES (SVID)** | Un certificado por cada workload en el nodo. Identidad SPIFFE: `spiffe://cluster.local/ns/X/sa/Y` | mTLS entre workloads | 24 horas típicamente |
+| **CA ROOT CERTIFICATE** | Certificado raíz de la CA de Istio | Validar certificados de otros workloads | Vida larga |
+| **ZTUNNEL'S OWN CERTIFICATE** | Certificado del propio ztunnel | Admin/metrics endpoints (NO para mTLS de workloads) | - |
 
 ### 1.2 SPIFFE SVID Format
 
@@ -95,50 +74,26 @@ Al completar este documento:
 
 ### 2.1 Componentes
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│               Certificate Management Architecture              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                        istiod                            │   │
-│  │  ┌────────────────────────────────────────────────────┐ │   │
-│  │  │                   Citadel CA                        │ │   │
-│  │  │                                                     │ │   │
-│  │  │  • Signs CSRs from workloads                       │ │   │
-│  │  │  • Validates workload identity                     │ │   │
-│  │  │  • Issues short-lived certificates                 │ │   │
-│  │  │                                                     │ │   │
-│  │  └──────────────────────┬─────────────────────────────┘ │   │
-│  └─────────────────────────┼───────────────────────────────┘   │
-│                            │                                    │
-│                            │ SDS (Secret Discovery Service)    │
-│                            │ gRPC stream                        │
-│                            │                                    │
-│  ┌─────────────────────────┼───────────────────────────────┐   │
-│  │         ztunnel         │                                │   │
-│  │  ┌──────────────────────▼─────────────────────────────┐ │   │
-│  │  │              Certificate Manager                    │ │   │
-│  │  │                                                     │ │   │
-│  │  │  • Maintains certs for all workloads on node       │ │   │
-│  │  │  • Monitors expiration                             │ │   │
-│  │  │  • Triggers rotation before expiry                 │ │   │
-│  │  │                                                     │ │   │
-│  │  └──────────────────────┬─────────────────────────────┘ │   │
-│  │                         │                                │   │
-│  │  ┌──────────────────────┼─────────────────────────────┐ │   │
-│  │  │      Certificate Store                              │ │   │
-│  │  │  ┌─────────────────────────────────────────────┐   │ │   │
-│  │  │  │ Workload A → Cert A + Key A                 │   │ │   │
-│  │  │  │ Workload B → Cert B + Key B                 │   │ │   │
-│  │  │  │ Workload C → Cert C + Key C                 │   │ │   │
-│  │  │  │ CA Root   → Root Cert                       │   │ │   │
-│  │  │  └─────────────────────────────────────────────┘   │ │   │
-│  │  └────────────────────────────────────────────────────┘ │   │
-│  │                                                          │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Istiod["istiod"]
+        CA["Citadel CA<br/>• Signs CSRs from workloads<br/>• Validates workload identity<br/>• Issues short-lived certificates"]
+    end
+
+    CA <-->|"SDS (Secret Discovery Service)<br/>gRPC stream"| CertMgr
+
+    subgraph Ztunnel["ztunnel"]
+        CertMgr["Certificate Manager<br/>• Maintains certs for all workloads on node<br/>• Monitors expiration<br/>• Triggers rotation before expiry"]
+
+        subgraph Store["Certificate Store"]
+            WA["Workload A → Cert A + Key A"]
+            WB["Workload B → Cert B + Key B"]
+            WC["Workload C → Cert C + Key C"]
+            Root["CA Root → Root Cert"]
+        end
+
+        CertMgr --> Store
+    end
 ```
 
 ### 2.2 Flujo de Obtención de Certificado

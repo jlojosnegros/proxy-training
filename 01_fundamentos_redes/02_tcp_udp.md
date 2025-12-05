@@ -38,24 +38,25 @@ TCP es un protocolo **connection-oriented** y **reliable**:
 
 Antes de cualquier transmisión de datos, TCP establece una conexión:
 
-```
-    Cliente                                          Servidor
-       │                                                │
-       │  Estado: CLOSED                                │ Estado: LISTEN
-       │                                                │
-   t0  │───────────── SYN (seq=100) ───────────────────>│
-       │  Estado: SYN_SENT                              │
-       │                                                │
-   t1  │<───────── SYN-ACK (seq=300, ack=101) ─────────│
-       │                                                │ Estado: SYN_RECEIVED
-       │                                                │
-   t2  │───────────── ACK (ack=301) ───────────────────>│
-       │  Estado: ESTABLISHED                           │ Estado: ESTABLISHED
-       │                                                │
-       │            ┌─────────────────┐                 │
-       │            │ Conexión lista  │                 │
-       │            │ para transmitir │                 │
-       │            └─────────────────┘                 │
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant S as Servidor
+
+    Note over C: Estado: CLOSED
+    Note over S: Estado: LISTEN
+
+    C->>S: SYN (seq=100)
+    Note over C: Estado: SYN_SENT
+
+    S->>C: SYN-ACK (seq=300, ack=101)
+    Note over S: Estado: SYN_RECEIVED
+
+    C->>S: ACK (ack=301)
+    Note over C: Estado: ESTABLISHED
+    Note over S: Estado: ESTABLISHED
+
+    Note over C,S: Conexión lista para transmitir
 ```
 
 **Detalles importantes**:
@@ -68,18 +69,17 @@ Antes de cualquier transmisión de datos, TCP establece una conexión:
 
 Una vez establecida la conexión:
 
-```
-    Cliente                                          Servidor
-       │                                                │
-       │───── DATA (seq=101, 100 bytes) ──────────────>│
-       │                                                │
-       │<──────────── ACK (ack=201) ───────────────────│
-       │                                                │
-       │───── DATA (seq=201, 150 bytes) ──────────────>│
-       │                                                │
-       │<──────────── ACK (ack=351) ───────────────────│
-       │                                                │
-       │  Si no llega ACK, el cliente retransmite      │
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant S as Servidor
+
+    C->>S: DATA (seq=101, 100 bytes)
+    S->>C: ACK (ack=201)
+    C->>S: DATA (seq=201, 150 bytes)
+    S->>C: ACK (ack=351)
+
+    Note over C,S: Si no llega ACK, el cliente retransmite
 ```
 
 **Conceptos clave**:
@@ -90,25 +90,28 @@ Una vez establecida la conexión:
 
 ### 1.4 Cierre de Conexión (Four-Way Handshake)
 
-```
-    Cliente                                          Servidor
-       │                                                │
-       │─────────────── FIN (seq=400) ─────────────────>│
-       │  Estado: FIN_WAIT_1                            │
-       │                                                │
-       │<────────────── ACK (ack=401) ─────────────────│
-       │  Estado: FIN_WAIT_2                            │ Estado: CLOSE_WAIT
-       │                                                │
-       │               (servidor puede seguir           │
-       │                enviando datos)                 │
-       │                                                │
-       │<────────────── FIN (seq=500) ─────────────────│
-       │                                                │ Estado: LAST_ACK
-       │                                                │
-       │─────────────── ACK (ack=501) ─────────────────>│
-       │  Estado: TIME_WAIT                             │ Estado: CLOSED
-       │                                                │
-       │  (espera 2*MSL antes de CLOSED)               │
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant S as Servidor
+
+    C->>S: FIN (seq=400)
+    Note over C: Estado: FIN_WAIT_1
+
+    S->>C: ACK (ack=401)
+    Note over C: Estado: FIN_WAIT_2
+    Note over S: Estado: CLOSE_WAIT
+
+    Note over S: (servidor puede seguir enviando datos)
+
+    S->>C: FIN (seq=500)
+    Note over S: Estado: LAST_ACK
+
+    C->>S: ACK (ack=501)
+    Note over C: Estado: TIME_WAIT
+    Note over S: Estado: CLOSED
+
+    Note over C: (espera 2*MSL antes de CLOSED)
 ```
 
 **El estado TIME_WAIT**:
@@ -176,20 +179,20 @@ UDP es **connectionless** y **unreliable** (en el sentido de que no garantiza en
 
 ### 2.2 Estructura de un Datagrama UDP
 
-```
-┌─────────────────────────────────────────────┐
-│ UDP Header (8 bytes)                        │
-├─────────────────┬───────────────────────────┤
-│ Source Port     │ 16 bits                   │
-├─────────────────┼───────────────────────────┤
-│ Dest Port       │ 16 bits                   │
-├─────────────────┼───────────────────────────┤
-│ Length          │ 16 bits                   │
-├─────────────────┼───────────────────────────┤
-│ Checksum        │ 16 bits (opcional)        │
-├─────────────────┴───────────────────────────┤
-│ Payload                                     │
-└─────────────────────────────────────────────┘
+```mermaid
+block-beta
+    columns 2
+
+    block:header:2
+        columns 1
+        h["UDP Header (8 bytes)"]
+    end
+
+    sp["Source Port"] spval["16 bits"]
+    dp["Dest Port"] dpval["16 bits"]
+    len["Length"] lenval["16 bits"]
+    chk["Checksum"] chkval["16 bits (opcional)"]
+    payload["Payload"]:2
 ```
 
 **Comparado con TCP**:
@@ -222,14 +225,21 @@ UDP es **connectionless** y **unreliable** (en el sentido de que no garantiza en
 
 Un proxy L4 termina conexiones TCP de ambos lados:
 
-```
-Cliente                    Proxy                    Servidor
-   │                         │                         │
-   │◄──── Conexión TCP 1 ───►│◄──── Conexión TCP 2 ───►│
-   │                         │                         │
-   │        Handshake        │       Handshake         │
-   │           ↓             │          ↓              │
-   │    fd=5 (downstream)    │    fd=7 (upstream)      │
+```mermaid
+flowchart LR
+    subgraph Downstream["Conexión TCP 1"]
+        C["Cliente"]
+        P1["Proxy<br/>fd=5"]
+    end
+
+    subgraph Upstream["Conexión TCP 2"]
+        P2["Proxy<br/>fd=7"]
+        S["Servidor"]
+    end
+
+    C <-->|Handshake| P1
+    P2 <-->|Handshake| S
+    P1 --- P2
 ```
 
 **El proxy mantiene**:
@@ -242,22 +252,27 @@ Cliente                    Proxy                    Servidor
 
 Sin pooling, cada request = nueva conexión TCP:
 
+```mermaid
+flowchart LR
+    subgraph NoPool["Sin Connection Pooling"]
+        R1["Request 1"] --> H1["Handshake"] --> D1["Data"] --> C1["Close"]
+        R2["Request 2"] --> H2["Handshake"] --> D2["Data"] --> C2["Close"]
+        R3["Request 3"] --> H3["Handshake"] --> D3["Data"] --> C3["Close"]
+    end
 ```
-Request 1: Handshake → Data → Close
-Request 2: Handshake → Data → Close
-Request 3: Handshake → Data → Close
-           ↑
-     Overhead de 3 handshakes
-```
+
+*Overhead de 3 handshakes*
 
 Con pooling (como hace Envoy):
 
-```
-Request 1: Handshake → Data
-Request 2:             Data  (reutiliza conexión)
-Request 3:             Data  (reutiliza conexión)
-                       ...
-                       Close (cuando se cierra el pool)
+```mermaid
+flowchart LR
+    subgraph Pool["Con Connection Pooling"]
+        R1["Request 1"] --> H1["Handshake"] --> D1["Data"]
+        R2["Request 2"] --> D2["Data"]
+        R3["Request 3"] --> D3["Data"]
+        D3 --> CL["Close (cuando se cierra el pool)"]
+    end
 ```
 
 **En Envoy**:
@@ -348,15 +363,13 @@ setSocketOption(SO_REUSEPORT, 1);
 
 Detecta conexiones "muertas" enviando probes periódicos:
 
-```
-Tiempo   0     30s    60s    90s
-         │      │      │      │
-         ├──────┼──────┼──────┤
-         │      │      │      │
-       Datos  Probe  Probe  Timeout
-              si no   si no   → cerrar
-              hay     hay
-              datos   respuesta
+```mermaid
+flowchart LR
+    subgraph Timeline["TCP Keep-Alive Timeline"]
+        T0["0s<br/>Datos"] --> T30["30s<br/>Probe<br/>(si no hay datos)"]
+        T30 --> T60["60s<br/>Probe<br/>(si no hay respuesta)"]
+        T60 --> T90["90s<br/>Timeout<br/>→ cerrar"]
+    end
 ```
 
 **Configuración en Envoy** (cluster config):
@@ -373,11 +386,22 @@ upstream_connection_options:
 
 Permite enviar datos en el primer paquete SYN:
 
-```
-Handshake normal:          Con TFO:
-SYN          →             SYN + DATA     →
-         ← SYN-ACK                     ← SYN-ACK + DATA
-ACK + DATA   →
+```mermaid
+flowchart TB
+    subgraph Normal["Handshake Normal"]
+        direction TB
+        N1["SYN →"]
+        N2["← SYN-ACK"]
+        N3["ACK + DATA →"]
+        N1 --> N2 --> N3
+    end
+
+    subgraph TFO["Con TCP Fast Open"]
+        direction TB
+        T1["SYN + DATA →"]
+        T2["← SYN-ACK + DATA"]
+        T1 --> T2
+    end
 ```
 
 Ahorra un RTT (round-trip time) para el primer request.

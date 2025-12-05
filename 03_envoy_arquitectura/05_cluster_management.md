@@ -26,25 +26,24 @@ Al completar este documento:
 
 Un **cluster** es un grupo de endpoints (hosts) que pueden servir tráfico:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Cluster: "api-v1"                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Endpoints:                                                     │
-│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐       │
-│  │ 10.0.1.1:8080 │  │ 10.0.1.2:8080 │  │ 10.0.1.3:8080 │       │
-│  │ weight: 1     │  │ weight: 1     │  │ weight: 1     │       │
-│  │ healthy: ✓    │  │ healthy: ✓    │  │ healthy: ✗    │       │
-│  └───────────────┘  └───────────────┘  └───────────────┘       │
-│                                                                 │
-│  Config:                                                        │
-│  ├── LB Policy: ROUND_ROBIN                                    │
-│  ├── Connect Timeout: 5s                                        │
-│  ├── Health Check: HTTP /health every 10s                       │
-│  └── Circuit Breaker: max 100 connections                       │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Cluster["Cluster: api-v1"]
+        subgraph Endpoints["Endpoints"]
+            E1["10.0.1.1:8080<br/>weight: 1<br/>healthy: ✓"]
+            E2["10.0.1.2:8080<br/>weight: 1<br/>healthy: ✓"]
+            E3["10.0.1.3:8080<br/>weight: 1<br/>healthy: ✗"]
+        end
+
+        subgraph Config["Config"]
+            C1["LB Policy: ROUND_ROBIN"]
+            C2["Connect Timeout: 5s"]
+            C3["Health Check: HTTP /health every 10s"]
+            C4["Circuit Breaker: max 100 connections"]
+        end
+    end
+
+    style E3 fill:#ff6b6b,color:#fff
 ```
 
 ### 1.2 Cluster Manager
@@ -166,12 +165,12 @@ HostConstSharedPtr RoundRobinLoadBalancer::chooseHost(LoadBalancerContext*) {
 }
 ```
 
-```
-Request 1 → Host A
-Request 2 → Host B
-Request 3 → Host C
-Request 4 → Host A (wrap)
-...
+```mermaid
+flowchart LR
+    R1["Request 1"] --> A1["Host A"]
+    R2["Request 2"] --> B["Host B"]
+    R3["Request 3"] --> C["Host C"]
+    R4["Request 4"] -->|"wrap"| A2["Host A"]
 ```
 
 ### 3.3 Least Request
@@ -215,11 +214,16 @@ HostConstSharedPtr RingHashLoadBalancer::chooseHost(LoadBalancerContext* ctx) {
 }
 ```
 
-```
-Ring:
-[0    ....    Host_A    ....    Host_B    ....    Host_C    ....    MAX]
-              ^
-              Hash(request) cae aquí → Host_A
+```mermaid
+flowchart LR
+    subgraph Ring["Ring Hash"]
+        direction LR
+        Zero["0"] -.-> HA["Host_A"] -.-> HB["Host_B"] -.-> HC["Host_C"] -.-> Max["MAX"]
+    end
+
+    Hash["Hash(request)"] -->|"cae aquí"| HA
+
+    style HA fill:#4a9eff,color:#fff
 ```
 
 ### 3.5 Configuración de Hash
@@ -336,14 +340,17 @@ clusters:
 
 Protege backends de sobrecarga cortando tráfico cuando se exceden límites:
 
-```
-                    Normal                     Circuit Open
-                    ┌─────┐                    ┌─────┐
-Requests ──────────>│     │──────────>         │     │───X──> (503)
-                    │ CB  │  Backend           │ CB  │
-                    └─────┘                    └─────┘
-                      │                          │
-              connections < max         connections >= max
+```mermaid
+flowchart LR
+    subgraph Normal["Normal (connections < max)"]
+        R1["Requests"] --> CB1["Circuit<br/>Breaker"] --> B1["Backend"]
+    end
+
+    subgraph Open["Circuit Open (connections >= max)"]
+        R2["Requests"] --> CB2["Circuit<br/>Breaker"] -->|"X"| Error["503"]
+    end
+
+    style Error fill:#ff6b6b,color:#fff
 ```
 
 ### 5.2 Configuración
@@ -397,44 +404,33 @@ void ClusterCircuitBreakerStats::checkTresholds() {
 
 ### 6.1 HTTP/1.1 Pool
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                  HTTP/1.1 Connection Pool                       │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Host: 10.0.1.1:8080                                           │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐              │
-│  │ Connection 1│ │ Connection 2│ │ Connection 3│              │
-│  │ (busy)      │ │ (idle)      │ │ (busy)      │              │
-│  └─────────────┘ └─────────────┘ └─────────────┘              │
-│                                                                 │
-│  - 1 request por conexión (no multiplex)                       │
-│  - Keep-alive para reutilizar                                   │
-│  - max_connections limita total                                 │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph H1Pool["HTTP/1.1 Connection Pool - Host: 10.0.1.1:8080"]
+        C1["Connection 1<br/>(busy)"]
+        C2["Connection 2<br/>(idle)"]
+        C3["Connection 3<br/>(busy)"]
+
+        Note1["• 1 request por conexión (no multiplex)<br/>• Keep-alive para reutilizar<br/>• max_connections limita total"]
+    end
+
+    style C2 fill:#10b981,color:#fff
 ```
 
 ### 6.2 HTTP/2 Pool
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    HTTP/2 Connection Pool                       │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Host: 10.0.1.1:8080                                           │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ Connection 1                                             │   │
-│  │ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐            │   │
-│  │ │Stream 1│ │Stream 3│ │Stream 5│ │Stream 7│            │   │
-│  │ └────────┘ └────────┘ └────────┘ └────────┘            │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  - Múltiples streams por conexión                               │
-│  - max_concurrent_streams por conexión                          │
-│  - Típicamente menos conexiones necesarias                      │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph H2Pool["HTTP/2 Connection Pool - Host: 10.0.1.1:8080"]
+        subgraph Conn["Connection 1"]
+            S1["Stream 1"]
+            S3["Stream 3"]
+            S5["Stream 5"]
+            S7["Stream 7"]
+        end
+
+        Note2["• Múltiples streams por conexión<br/>• max_concurrent_streams por conexión<br/>• Típicamente menos conexiones necesarias"]
+    end
 ```
 
 ### 6.3 Configuración de Pool

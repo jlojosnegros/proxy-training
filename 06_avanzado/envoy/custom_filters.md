@@ -24,65 +24,40 @@ Al completar este documento:
 
 ### 1.1 Tipos de Filters
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Filter Types in Envoy                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  LISTENER FILTERS                                              │
-│  ─────────────────                                              │
-│  • Se ejecutan durante connection accept                       │
-│  • Ejemplo: TLS Inspector, HTTP Inspector                      │
-│  • Path: source/extensions/filters/listener/                   │
-│                                                                 │
-│  NETWORK FILTERS (L4)                                          │
-│  ────────────────────                                           │
-│  • Se ejecutan sobre raw TCP/UDP                               │
-│  • Ejemplo: TCP Proxy, Redis Proxy                             │
-│  • Path: source/extensions/filters/network/                    │
-│                                                                 │
-│  HTTP FILTERS (L7)                                             │
-│  ─────────────────                                              │
-│  • Se ejecutan sobre HTTP requests/responses                   │
-│  • Ejemplo: Router, CORS, JWT Auth                             │
-│  • Path: source/extensions/filters/http/                       │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Tipo | Descripción | Ejemplos | Path |
+|------|-------------|----------|------|
+| **LISTENER FILTERS** | Se ejecutan durante connection accept | TLS Inspector, HTTP Inspector | `source/extensions/filters/listener/` |
+| **NETWORK FILTERS (L4)** | Se ejecutan sobre raw TCP/UDP | TCP Proxy, Redis Proxy | `source/extensions/filters/network/` |
+| **HTTP FILTERS (L7)** | Se ejecutan sobre HTTP requests/responses | Router, CORS, JWT Auth | `source/extensions/filters/http/` |
 
 ### 1.2 HTTP Filter Chain
 
+```mermaid
+flowchart LR
+    subgraph Decode["Request Path (decode)"]
+        direction LR
+        D["Downstream"] --> F1D["Filter 1<br/>decodeHeaders<br/>decodeData<br/>decodeTrailers"]
+        F1D --> F2D["Filter 2"]
+        F2D --> FND["Filter N"]
+        FND --> Up["Upstream"]
+    end
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                   HTTP Filter Chain                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Request Path (decode):                                        │
-│                                                                 │
-│  Downstream ──> [Filter 1] ──> [Filter 2] ──> [Filter N] ──>   │
-│                 decodeHeaders  decodeHeaders  decodeHeaders     │
-│                 decodeData     decodeData     decodeData        │
-│                 decodeTrailers decodeTrailers decodeTrailers    │
-│                                                                 │
-│                                                       │         │
-│                                                       ▼         │
-│                                                   Upstream      │
-│                                                       │         │
-│                                                       │         │
-│  Response Path (encode):                              ▼         │
-│                                                                 │
-│  Downstream <── [Filter 1] <── [Filter 2] <── [Filter N] <──   │
-│                 encodeHeaders  encodeHeaders  encodeHeaders     │
-│                 encodeData     encodeData     encodeData        │
-│                 encodeTrailers encodeTrailers encodeTrailers    │
-│                                                                 │
-│  Filter puede:                                                 │
-│  • Continuar (Continue)                                        │
-│  • Pausar (StopIteration)                                      │
-│  • Responder directamente (sendLocalReply)                     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+
+```mermaid
+flowchart RL
+    subgraph Encode["Response Path (encode)"]
+        direction RL
+        Up2["Upstream"] --> FNE["Filter N<br/>encodeHeaders<br/>encodeData<br/>encodeTrailers"]
+        FNE --> F2E["Filter 2"]
+        F2E --> F1E["Filter 1"]
+        F1E --> D2["Downstream"]
+    end
 ```
+
+**Filter puede:**
+- Continuar (`Continue`)
+- Pausar (`StopIteration`)
+- Responder directamente (`sendLocalReply`)
 
 ---
 

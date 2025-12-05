@@ -26,36 +26,42 @@ Al completar este documento:
 
 Envoy usa un modelo **single-process, multi-threaded**:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Envoy Process                            │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                     MAIN THREAD                          │   │
-│  ├─────────────────────────────────────────────────────────┤   │
-│  │  • Startup/shutdown                                      │   │
-│  │  • Configuration updates (xDS)                           │   │
-│  │  • Stats flushing                                        │   │
-│  │  • Admin interface                                       │   │
-│  │  • Health check coordination                             │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                              │                                  │
-│              ┌───────────────┼───────────────┐                 │
-│              │               │               │                 │
-│              ▼               ▼               ▼                 │
-│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐      │
-│  │ WORKER 0      │  │ WORKER 1      │  │ WORKER N      │      │
-│  ├───────────────┤  ├───────────────┤  ├───────────────┤      │
-│  │ • Event loop  │  │ • Event loop  │  │ • Event loop  │      │
-│  │ • Connections │  │ • Connections │  │ • Connections │      │
-│  │ • Filters     │  │ • Filters     │  │ • Filters     │      │
-│  │ • TLS state   │  │ • TLS state   │  │ • TLS state   │      │
-│  └───────────────┘  └───────────────┘  └───────────────┘      │
-│                                                                 │
-│  Número de workers = número de CPUs (configurable)             │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph EnvoyProcess["Envoy Process"]
+        subgraph MainThread["MAIN THREAD"]
+            M1["• Startup/shutdown"]
+            M2["• Configuration updates (xDS)"]
+            M3["• Stats flushing"]
+            M4["• Admin interface"]
+            M5["• Health check coordination"]
+        end
+
+        MainThread --> W0 & W1 & WN
+
+        subgraph Workers["Workers (número = CPUs)"]
+            subgraph W0["WORKER 0"]
+                W0a["• Event loop"]
+                W0b["• Connections"]
+                W0c["• Filters"]
+                W0d["• TLS state"]
+            end
+
+            subgraph W1["WORKER 1"]
+                W1a["• Event loop"]
+                W1b["• Connections"]
+                W1c["• Filters"]
+                W1d["• TLS state"]
+            end
+
+            subgraph WN["WORKER N"]
+                WNa["• Event loop"]
+                WNb["• Connections"]
+                WNc["• Filters"]
+                WNd["• TLS state"]
+            end
+        end
+    end
 ```
 
 ### 1.2 Responsabilidades por Thread
@@ -98,34 +104,19 @@ class DispatcherImpl : public Dispatcher {
 
 ### 2.2 Flujo del Event Loop
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Event Loop (Worker)                         │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-                            ▼
-                   ┌────────────────┐
-                   │  Wait for      │◄─────────────────────────┐
-                   │  events        │                          │
-                   └───────┬────────┘                          │
-                           │                                   │
-              ┌────────────┼────────────┐                     │
-              │            │            │                     │
-              ▼            ▼            ▼                     │
-       ┌──────────┐ ┌──────────┐ ┌──────────┐                │
-       │  Socket  │ │  Timer   │ │  Signal  │                │
-       │  ready   │ │  expired │ │  received│                │
-       └────┬─────┘ └────┬─────┘ └────┬─────┘                │
-            │            │            │                       │
-            └────────────┼────────────┘                       │
-                         │                                    │
-                         ▼                                    │
-                ┌────────────────┐                           │
-                │ Execute        │                           │
-                │ callback       │                           │
-                └───────┬────────┘                           │
-                        │                                    │
-                        └────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Start["Event Loop (Worker)"]
+    Wait["Wait for events"]
+    Socket["Socket ready"]
+    Timer["Timer expired"]
+    Signal["Signal received"]
+    Execute["Execute callback"]
+
+    Start --> Wait
+    Wait --> Socket & Timer & Signal
+    Socket & Timer & Signal --> Execute
+    Execute --> Wait
 ```
 
 ### 2.3 Tipos de Eventos
@@ -197,34 +188,30 @@ void handleRequest() {
 
 ### 3.2 Implementación de TLS
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Thread-Local Storage                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   Main Thread                                                   │
-│   ┌─────────────────────────────────────────────────────────┐  │
-│   │ 1. Recibe config update via xDS                         │  │
-│   │ 2. Crea nuevo objeto Config                              │  │
-│   │ 3. Publica a TLS slot                                    │  │
-│   └───────────────────────────┬─────────────────────────────┘  │
-│                               │                                 │
-│                    post() to each worker                        │
-│                               │                                 │
-│   ┌───────────────────────────┼───────────────────────────┐    │
-│   │                           │                           │    │
-│   ▼                           ▼                           ▼    │
-│ ┌─────────────┐         ┌─────────────┐         ┌─────────────┐│
-│ │ Worker 0    │         │ Worker 1    │         │ Worker N    ││
-│ │             │         │             │         │             ││
-│ │ TLS Slot:   │         │ TLS Slot:   │         │ TLS Slot:   ││
-│ │ Config v2   │         │ Config v2   │         │ Config v2   ││
-│ │             │         │             │         │             ││
-│ │ (copia      │         │ (copia      │         │ (copia      ││
-│ │  local)     │         │  local)     │         │  local)     ││
-│ └─────────────┘         └─────────────┘         └─────────────┘│
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph TLSStorage["Thread-Local Storage"]
+        subgraph MainThread["Main Thread"]
+            S1["1. Recibe config update via xDS"]
+            S2["2. Crea nuevo objeto Config"]
+            S3["3. Publica a TLS slot"]
+            S1 --> S2 --> S3
+        end
+
+        S3 -->|"post() to each worker"| W0 & W1 & WN
+
+        subgraph W0["Worker 0"]
+            W0slot["TLS Slot: Config v2<br/>(copia local)"]
+        end
+
+        subgraph W1["Worker 1"]
+            W1slot["TLS Slot: Config v2<br/>(copia local)"]
+        end
+
+        subgraph WN["Worker N"]
+            WNslot["TLS Slot: Config v2<br/>(copia local)"]
+        end
+    end
 ```
 
 ### 3.3 Código de TLS
@@ -257,36 +244,25 @@ MyData& data = slot->get();
 
 ### 4.1 Aceptación de Conexiones
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Connection Accept Flow                       │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   1. Listener socket en puerto X (compartido con SO_REUSEPORT)  │
-│                                                                 │
-│   ┌───────────────┐  ┌───────────────┐  ┌───────────────┐      │
-│   │ Worker 0      │  │ Worker 1      │  │ Worker 2      │      │
-│   │ listening :X  │  │ listening :X  │  │ listening :X  │      │
-│   └───────┬───────┘  └───────┬───────┘  └───────┬───────┘      │
-│           │                  │                  │               │
-│           └──────────────────┼──────────────────┘               │
-│                              │                                  │
-│                              ▼                                  │
-│                    Kernel distributes                           │
-│                    connections (hash by                         │
-│                    source IP:port)                              │
-│                              │                                  │
-│   2. Un worker acepta la conexión                               │
-│                              │                                  │
-│                              ▼                                  │
-│   ┌─────────────────────────────────────────────────────────┐  │
-│   │ Worker N: accept() → nuevo fd                            │  │
-│   │           crea Connection object                         │  │
-│   │           registra en event loop                         │  │
-│   │           ¡Esta conexión SIEMPRE en este worker!         │  │
-│   └─────────────────────────────────────────────────────────┘  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph ConnAccept["Connection Accept Flow"]
+        Note1["1. Listener socket en puerto X (compartido con SO_REUSEPORT)"]
+
+        subgraph Workers["Workers listening :X"]
+            W0["Worker 0<br/>listening :X"]
+            W1["Worker 1<br/>listening :X"]
+            W2["Worker 2<br/>listening :X"]
+        end
+
+        Note1 --> Workers
+        Workers --> Kernel["Kernel distributes<br/>connections (hash by<br/>source IP:port)"]
+
+        Note2["2. Un worker acepta la conexión"]
+
+        Kernel --> Note2
+        Note2 --> Accept["Worker N:<br/>• accept() → nuevo fd<br/>• crea Connection object<br/>• registra en event loop<br/>• ¡Esta conexión SIEMPRE en este worker!"]
+    end
 ```
 
 ### 4.2 Lifetime de una Conexión
@@ -359,36 +335,24 @@ void DispatcherImpl::runPostCallbacks() {
 
 Envoy puede reiniciarse sin perder conexiones:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                       Hot Restart                               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   Tiempo ────────────────────────────────────────────────────>  │
-│                                                                 │
-│   Envoy v1 (old)                                               │
-│   ┌────────────────────────────┐                               │
-│   │ ████████████████████████   │                               │
-│   │ Procesando requests        │                               │
-│   │                            │ ← Envoy v2 inicia             │
-│   │ ████████████████           │   (nuevo proceso)             │
-│   │ Draining (no new conns)    │                               │
-│   │                            │                               │
-│   │ ███                        │ ← Conexiones antiguas         │
-│   │ terminan                   │   terminan                    │
-│   │                            │                               │
-│   └────────────────────────────┘ ← v1 termina                  │
-│                                                                 │
-│   Envoy v2 (new)                                               │
-│                   ┌────────────────────────────────────────────┐│
-│                   │           ████████████████████████████████ ││
-│                   │           Acepta nuevas conexiones         ││
-│                   │                                            ││
-│                   └────────────────────────────────────────────┘│
-│                                                                 │
-│   En ningún momento se pierden requests                        │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    participant V1 as Envoy v1 (old)
+    participant V2 as Envoy v2 (new)
+
+    Note over V1: Procesando requests
+
+    V2->>V2: Inicia (nuevo proceso)
+
+    Note over V1: Draining (no new conns)
+    Note over V2: Acepta nuevas conexiones
+
+    Note over V1: Conexiones antiguas terminan
+
+    V1->>V1: Termina
+
+    Note over V2: Continúa procesando
+    Note over V1,V2: En ningún momento se pierden requests
 ```
 
 ### 6.2 Mecanismo
@@ -439,32 +403,28 @@ void WorkerImpl::start(GuardDog& guard_dog) {
 
 ## 8. Diagrama de Secuencia: Request Processing
 
-```
-Main Thread          Worker Thread           Upstream
-     │                     │                     │
-     │                     │◄── TCP SYN ─────────│
-     │                     │                     │
-     │                     │── accept() ────────►│
-     │                     │   (nuevo fd)        │
-     │                     │                     │
-     │                     │◄── HTTP Request ────│
-     │                     │                     │
-     │                     │ Parse HTTP          │
-     │                     │ Run filters         │
-     │                     │ Route to cluster    │
-     │                     │                     │
-     │                     │── Upstream req ────►│
-     │                     │                     │
-     │                     │◄── Upstream resp ───│
-     │                     │                     │
-     │                     │ Run filters (reverse)│
-     │                     │                     │
-     │                     │── HTTP Response ───►│
-     │                     │                     │
-     │                     │ Update stats (TLS)  │
-     │                     │                     │
-     │◄── Stats flush ─────│                     │
-     │    (periodic)       │                     │
+```mermaid
+sequenceDiagram
+    participant Main as Main Thread
+    participant Worker as Worker Thread
+    participant Up as Upstream
+
+    Up->>Worker: TCP SYN
+    Worker->>Worker: accept() (nuevo fd)
+
+    Up->>Worker: HTTP Request
+    Worker->>Worker: Parse HTTP
+    Worker->>Worker: Run filters
+    Worker->>Worker: Route to cluster
+
+    Worker->>Up: Upstream request
+    Up->>Worker: Upstream response
+
+    Worker->>Worker: Run filters (reverse)
+    Worker->>Up: HTTP Response
+    Worker->>Worker: Update stats (TLS)
+
+    Worker->>Main: Stats flush (periodic)
 ```
 
 ---

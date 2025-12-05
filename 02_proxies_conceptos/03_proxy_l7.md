@@ -26,47 +26,35 @@ Al completar este documento:
 
 Un proxy L7 **entiende el protocolo de aplicación**:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ Lo que VE un proxy L7                                           │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  TODO lo de L4 (IP, puertos, TCP) PLUS:                        │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ HTTP Request                                              │  │
-│  ├──────────────────────────────────────────────────────────┤  │
-│  │ Method:         GET                                 ✓    │  │
-│  │ Path:           /api/v1/users                       ✓    │  │
-│  │ Query Params:   ?limit=10&offset=0                  ✓    │  │
-│  │ HTTP Version:   HTTP/1.1 or HTTP/2                  ✓    │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ HTTP Headers                                              │  │
-│  ├──────────────────────────────────────────────────────────┤  │
-│  │ Host:           api.example.com                     ✓    │  │
-│  │ Authorization:  Bearer eyJhbGciOiJIUzI1NiIsInR5... ✓    │  │
-│  │ Content-Type:   application/json                    ✓    │  │
-│  │ X-Request-ID:   abc-123-def                         ✓    │  │
-│  │ X-Custom:       any-value                           ✓    │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ HTTP Body                                                 │  │
-│  ├──────────────────────────────────────────────────────────┤  │
-│  │ {"user_id": 123, "action": "create"}                ✓    │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ gRPC Specifics                                            │  │
-│  ├──────────────────────────────────────────────────────────┤  │
-│  │ Service:        user.v1.UserService                 ✓    │  │
-│  │ Method:         GetUser                             ✓    │  │
-│  │ grpc-status:    0 (OK)                              ✓    │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph L7["Lo que VE un proxy L7"]
+        L4["TODO lo de L4 (IP, puertos, TCP) PLUS:"]
+
+        subgraph HTTP["HTTP Request ✓"]
+            h1["Method: GET"]
+            h2["Path: /api/v1/users"]
+            h3["Query: ?limit=10&offset=0"]
+            h4["Version: HTTP/1.1 or HTTP/2"]
+        end
+
+        subgraph Headers["HTTP Headers ✓"]
+            hdr1["Host: api.example.com"]
+            hdr2["Authorization: Bearer eyJ..."]
+            hdr3["Content-Type: application/json"]
+            hdr4["X-Request-ID: abc-123-def"]
+        end
+
+        subgraph Body["HTTP Body ✓"]
+            body["{\"user_id\": 123, \"action\": \"create\"}"]
+        end
+
+        subgraph GRPC["gRPC Specifics ✓"]
+            g1["Service: user.v1.UserService"]
+            g2["Method: GetUser"]
+            g3["grpc-status: 0 (OK)"]
+        end
+    end
 ```
 
 ### 1.2 Capacidades de un Proxy L7
@@ -95,57 +83,59 @@ El corazón del procesamiento L7 en Envoy es el `HttpConnectionManager`:
 source/common/http/conn_manager_impl.h:60
 ```
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                HTTP Connection Manager                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1. Recibe bytes de Network Filter                              │
-│                     │                                           │
-│                     ▼                                           │
-│  2. Parsea HTTP (HTTP/1.1, HTTP/2, HTTP/3)                     │
-│                     │                                           │
-│                     ▼                                           │
-│  3. Crea Stream por cada request                                │
-│                     │                                           │
-│                     ▼                                           │
-│  4. Ejecuta HTTP Filter Chain                                   │
-│     ┌───────────────────────────────────────┐                  │
-│     │ Filter 1 (ej: RBAC)                   │                  │
-│     │ Filter 2 (ej: JWT auth)               │                  │
-│     │ Filter 3 (ej: Rate limit)             │                  │
-│     │ Filter N (ej: Router) ← siempre último│                  │
-│     └───────────────────────────────────────┘                  │
-│                     │                                           │
-│                     ▼                                           │
-│  5. Router selecciona upstream cluster                          │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph HCM["HTTP Connection Manager"]
+        A["1. Recibe bytes de Network Filter"]
+        B["2. Parsea HTTP (HTTP/1.1, HTTP/2, HTTP/3)"]
+        C["3. Crea Stream por cada request"]
+
+        subgraph Filters["4. HTTP Filter Chain"]
+            F1["Filter 1 (RBAC)"]
+            F2["Filter 2 (JWT auth)"]
+            F3["Filter 3 (Rate limit)"]
+            FN["Filter N (Router) ← siempre último"]
+        end
+
+        E["5. Router selecciona upstream cluster"]
+
+        A --> B --> C --> F1 --> F2 --> F3 --> FN --> E
+    end
 ```
 
 ### 2.2 HTTP Filter Chain
 
 Cada request pasa por una cadena de filtros:
 
-```
-Request Flow (decode):
-┌───────────┐    ┌───────────┐    ┌───────────┐    ┌───────────┐
-│  RBAC     │───>│  JWT Auth │───>│Rate Limit │───>│  Router   │
-│ (authz)   │    │ (authn)   │    │           │    │           │
-└───────────┘    └───────────┘    └───────────┘    └───────────┘
-     │                 │                │                │
-     │ ✓ Pass          │ ✓ Pass         │ ✓ Pass         │ Forward
-     │ ✗ 403           │ ✗ 401          │ ✗ 429          │ to upstream
+```mermaid
+flowchart LR
+    subgraph Decode["Request Flow (decode)"]
+        direction LR
+        RBAC["RBAC<br/>(authz)"] --> JWT["JWT Auth<br/>(authn)"]
+        JWT --> Rate["Rate Limit"]
+        Rate --> Router["Router"]
+    end
 
-Response Flow (encode):
-┌───────────┐    ┌───────────┐    ┌───────────┐    ┌───────────┐
-│  Router   │<───│Rate Limit │<───│  JWT Auth │<───│  RBAC     │
-│           │    │           │    │           │    │           │
-└───────────┘    └───────────┘    └───────────┘    └───────────┘
-     │                                                    │
-     └────────────────────────────────────────────────────┘
-                    Response modification
-                    (ej: add headers)
+    RBAC -.->|"✗ 403"| Reject1[" "]
+    JWT -.->|"✗ 401"| Reject2[" "]
+    Rate -.->|"✗ 429"| Reject3[" "]
+    Router -->|"Forward"| Upstream["upstream"]
+
+    style Reject1 fill:none,stroke:none
+    style Reject2 fill:none,stroke:none
+    style Reject3 fill:none,stroke:none
+```
+
+```mermaid
+flowchart RL
+    subgraph Encode["Response Flow (encode)"]
+        direction RL
+        Router2["Router"] --> Rate2["Rate Limit"]
+        Rate2 --> JWT2["JWT Auth"]
+        JWT2 --> RBAC2["RBAC"]
+    end
+
+    RBAC2 -->|"Response modification<br/>(ej: add headers)"| Client["Client"]
 ```
 
 ### 2.3 Anatomía de un HTTP Filter
@@ -398,34 +388,33 @@ L7 puede:
 
 ### 6.1 Mayor Latencia
 
+```mermaid
+flowchart LR
+    subgraph L4["L4 Proxy (~0.1ms overhead)"]
+        direction LR
+        A1["Accept"] --> A2["Copy bytes"] --> A3["Close"]
+    end
 ```
-L4 Proxy:
-  ┌─────────────────────────────────────────┐
-  │ Accept → Copy bytes → Close             │
-  │ Time: ~0.1ms overhead                   │
-  └─────────────────────────────────────────┘
 
-L7 Proxy:
-  ┌─────────────────────────────────────────┐
-  │ Accept → Parse HTTP → Run filters →     │
-  │ Route → Forward → Parse response →      │
-  │ Run filters (reverse) → Send            │
-  │ Time: ~1-5ms overhead                   │
-  └─────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph L7["L7 Proxy (~1-5ms overhead)"]
+        direction LR
+        B1["Accept"] --> B2["Parse HTTP"] --> B3["Run filters"]
+        B3 --> B4["Route"] --> B5["Forward"]
+        B5 --> B6["Parse response"] --> B7["Run filters<br/>(reverse)"] --> B8["Send"]
+    end
 ```
 
 ### 6.2 Mayor Uso de Recursos
 
-```
-Por cada request, L7 debe:
-- Parsear HTTP headers (CPU)
-- Mantener estado del stream (memoria)
-- Ejecutar filtros (CPU)
-- Bufferar si es necesario (memoria)
-
-L4 solo:
-- Copiar bytes (mínimo CPU/memoria)
-```
+| Proxy | Operación | Recurso |
+|-------|-----------|---------|
+| **L7** | Parsear HTTP headers | CPU |
+| **L7** | Mantener estado del stream | Memoria |
+| **L7** | Ejecutar filtros | CPU |
+| **L7** | Bufferar si es necesario | Memoria |
+| **L4** | Copiar bytes | Mínimo CPU/memoria |
 
 ### 6.3 Cuando NO Usar L7
 
